@@ -127,6 +127,26 @@ class TestRedaction:
         assert report.clean
         assert report.text == "I had one on Friday after a bad meeting."
 
+    def test_clinical_data_is_not_over_masked(self) -> None:
+        """Over-masking is a silent data-loss bug, not a safe default.
+
+        A quit date turned into [PHONE] on the way to the extractor means the
+        extraction returns null and the session records nothing, with no error
+        anywhere.
+        """
+        for text in (
+            "My quit date is 2026-09-17 and I smoke 20 a day.",
+            "I had one on 2026-09-17, about 6 out of 10.",
+            "Ten to fifteen a day since 2019-03-01.",
+        ):
+            assert redact(text).clean, text
+
+    @pytest.mark.parametrize(
+        "text", ["082 555 1234", "+27 82 555 1234", "(021) 555-1234", "0825551234"]
+    )
+    def test_real_phone_numbers_are_still_masked(self, text: str) -> None:
+        assert redact(f"you can reach me on {text} any time").counts.get("phone") == 1
+
     def test_egress_policy_refuses_providers_not_on_the_allowlist(self) -> None:
         policy = EgressPolicy({"scripted"})
         policy.check("scripted")

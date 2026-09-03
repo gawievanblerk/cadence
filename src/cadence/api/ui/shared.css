@@ -1,0 +1,154 @@
+/* One stylesheet for all three interfaces.
+   No build step and no framework, which is consistent with the rest of the
+   system: nothing here is a dependency anyone has to keep alive. */
+
+:root {
+  --ink: #1c1c1c;
+  --ink-soft: #5a5a5a;
+  --ink-faint: #8b8b8b;
+  --paper: #ffffff;
+  --wash: #f6f4ef;
+  --line: #e3ded3;
+  --line-strong: #cec7b8;
+  --accent: #2f5d50;
+  --accent-soft: #e6efec;
+  --warn: #9a3b26;
+  --warn-soft: #fbeeea;
+  --ok: #3d6b3a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--wash);
+}
+
+header.top {
+  display: flex; align-items: baseline; gap: 16px;
+  padding: 12px 22px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+header.top .brand { font-weight: 600; letter-spacing: -0.01em; font-size: 15px; }
+header.top .role {
+  font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+header.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 13px; }
+header.top nav a { color: var(--ink-soft); text-decoration: none; }
+header.top nav a.on { color: var(--accent); font-weight: 600; }
+header.top .pill {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+}
+
+main { padding: 20px 22px 40px; max-width: 1220px; margin: 0 auto; }
+.cols { display: grid; gap: 18px; align-items: start; }
+.cols.c2 { grid-template-columns: 1fr 340px; }
+.cols.c2w { grid-template-columns: 300px 1fr; }
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card > h2 {
+  margin: 0 0 12px; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-faint);
+}
+.card > h2 .count { color: var(--line-strong); font-weight: 500; }
+
+.muted { color: var(--ink-soft); }
+.tiny { font-size: 12px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+
+/* conversation */
+.thread { display: flex; flex-direction: column; gap: 12px; }
+.turn { max-width: 78%; padding: 10px 14px; border-radius: 12px; }
+.turn.counsellor { background: var(--wash); border: 1px solid var(--line); align-self: flex-start; }
+.turn.client { background: var(--accent); color: #fff; align-self: flex-end; }
+.turn p { margin: 0 0 8px; white-space: pre-wrap; }
+.turn p:last-child { margin: 0; }
+.turn .who {
+  font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
+  opacity: 0.6; margin-bottom: 4px;
+}
+.engine-note {
+  align-self: center; font-size: 11.5px; color: var(--ink-faint);
+  font-style: italic; padding: 3px 12px; border: 1px dashed var(--line-strong);
+  border-radius: 10px; background: var(--paper);
+}
+.composer { display: flex; gap: 8px; margin-top: 16px; }
+.composer input {
+  flex: 1; padding: 10px 12px; font: inherit;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: var(--paper);
+}
+
+button {
+  font: inherit; font-weight: 600; padding: 9px 16px; cursor: pointer;
+  border-radius: 6px; border: 1px solid var(--accent);
+  background: var(--accent); color: #fff;
+}
+button.ghost { background: var(--paper); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+/* data display */
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; }
+.kv dt { color: var(--ink-soft); }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 2px; }
+.bar > span { display: block; height: 100%; background: var(--accent); }
+
+.chip {
+  display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: var(--wash); border: 1px solid var(--line); color: var(--ink-soft);
+  margin: 0 4px 4px 0;
+}
+.chip.on { background: var(--accent-soft); border-color: #bcd5cd; color: var(--accent); font-weight: 600; }
+.chip.alert { background: var(--warn-soft); border-color: #eccfc7; color: var(--warn); font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 700; padding: 0 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+td { padding: 7px 10px 7px 0; border-bottom: 1px solid #f0ece3; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+.state { font-weight: 700; font-size: 11px; letter-spacing: 0.05em; }
+.state.fired { color: var(--warn); }
+.state.quiet { color: var(--ink-faint); }
+
+/* editor */
+.editor {
+  width: 100%; min-height: 460px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px; line-height: 1.55; padding: 12px 14px; tab-size: 2;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: #fbfaf7; color: #24303c;
+  resize: vertical;
+}
+.filelist { list-style: none; margin: 0; padding: 0; }
+.filelist li { border-bottom: 1px solid #f0ece3; }
+.filelist button {
+  width: 100%; text-align: left; background: none; border: none; color: var(--ink);
+  padding: 8px 6px; font-weight: 500; border-radius: 0;
+}
+.filelist button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.filelist .meta { display: block; font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+
+.banner { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin: 12px 0 0; }
+.banner.ok { background: #eef4ed; border: 1px solid #cfe0cc; color: var(--ok); }
+.banner.bad { background: var(--warn-soft); border: 1px solid #eccfc7; color: var(--warn); }
+.banner ul { margin: 6px 0 0; padding-left: 18px; }
+.banner li { margin-bottom: 3px; }
+
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.toolbar .spacer { margin-left: auto; }

@@ -231,6 +231,25 @@ repository. The client record is ordinary tables that run on SQLite or Postgres
 without a rewrite. There is no proprietary datastore, no vendor SDK, no framework
 that owns the control flow, and no cloud service that cannot be replaced.
 
+## Interfaces
+
+Three pages, served by the same process, written in plain HTML with no build step
+and no framework. They call the same API any other client would, so nothing they can
+do is available only to them, and nothing about them is load-bearing.
+
+That is deliberate. A reference implementation that ships a front-end framework has
+made a decision on the operator's behalf that the operator should make later, with a
+designer, once there is something to design. What these pages are for is showing the
+engine working: the client's session with the pathway changing under it, the clinical
+team editing a session and being refused, and the decision log a reviewer would
+actually read.
+
+The authoring endpoint behind the second page is worth noting. It writes the file,
+revalidates the whole programme, and rolls the file back if the edit broke anything.
+Validating the edited file alone would not be enough: a session can be individually
+well-formed and still break the programme by referring to a knowledge document that
+was deleted, or by renaming a step some rule elsewhere points at.
+
 ## Known limits
 
 The vector store computes cosine similarity in Python over JSON columns. Correct,

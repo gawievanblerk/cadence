@@ -32,6 +32,15 @@ class RespondRequest(BaseModel):
     text: str
 
 
+class SourceBody(BaseModel):
+    source: str = Field(description="The complete YAML source of the file being saved.")
+
+
+class PublishBody(BaseModel):
+    version: str
+    notes: str = ""
+
+
 class TurnResponse(BaseModel):
     session_run_id: str
     text: str

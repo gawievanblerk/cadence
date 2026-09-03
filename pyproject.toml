@@ -32,7 +32,7 @@ cadence = "cadence.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-cadence = ["orchestration/prompts/*.j2"]
+cadence = ["orchestration/prompts/*.j2", "api/ui/*.html", "api/ui/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

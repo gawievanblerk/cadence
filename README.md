@@ -20,12 +20,25 @@ deterministically.
 ```bash
 pip install -e ".[dev]"
 
-make test           # 82 tests
+make test           # 94 tests
 make demo           # a client's first month, five sessions, including a lapse
 make demo-swap      # what changes when you change vendor, and what does not
 make demo-content   # a clinician edits a threshold and the pathway changes
-make api            # FastAPI on :8000, /docs for the OpenAPI page
+make api            # FastAPI on :8000
 ```
+
+With the server up there are three reference interfaces, all of them calling the
+same API any other client would:
+
+| | |
+|---|---|
+| `/ui/` | the client's counselling session, with progress and the rules that fired |
+| `/ui/author` | the clinical team's authoring screen: edit a session or a threshold, save, and watch the validator refuse a broken rule and roll the file back |
+| `/ui/admin` | caseload, the decision log including rules that did not fire, and the register of what was sent to which model provider |
+| `/docs` | the OpenAPI page |
+
+They are plain HTML with no build step and no framework: enough to show the
+engine working, and small enough to throw away when a real front end is built.
 
 To use a real model, bind a role to a vendor and export its key. That is the
 whole procedure.
@@ -56,7 +69,7 @@ src/cadence/
   rag/              retrieval over the knowledge base
   llm/              the only code in the repository that knows a vendor exists
   orchestration/    the session state machine, guardrails, extraction, prompts
-  api/              HTTP transport
+  api/              HTTP transport, content authoring, three reference interfaces
   db/               schema, engine, field-level encryption
 
 tests/              behaviour, not mocks: the assertions are about decisions
@@ -83,6 +96,11 @@ same answers. The validator that runs before publication catches misspelled
 observation kinds, undefined thresholds, dangling session references and broken
 expressions, which are the mistakes that otherwise fail silently for months.
 
+**A clinician can be wrong without being dangerous.** The authoring endpoint writes
+the file, revalidates the whole programme, and rolls the file back if the edit broke
+anything, reporting every problem. `tests/test_api.py::TestAuthoringRoundTrip` asserts
+it; `/ui/author` shows it.
+
 **Memory is designed rather than accumulated.** Four layers with different
 guarantees, described in `docs/ARCHITECTURE.md`, assembled per turn under a token
 budget. Verbatim transcripts are never carried between sessions, which is what
@@ -92,6 +110,7 @@ keeps a nine-month programme's context flat instead of linear.
 
 This is a working reference implementation, complete enough to run a programme
 end to end and to be argued with. It is explicit about what is a stub: bearer
-token authentication is a placeholder with the right shape, the vector store is
-correct and O(n) rather than indexed, and voice is designed for but not built.
+token authentication is a placeholder with the right shape, the interfaces are
+reference pages rather than a product, the vector store is correct and O(n) rather
+than indexed, and voice is designed for but not built.
 Those are marked in the code where they occur rather than left to be discovered.

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clinical review</title>
+<link rel="stylesheet" href="/ui/shared.css">
+</head>
+<body>
+
+<header class="top">
+  <span class="brand">Cadence</span>
+  <span class="role">Clinical review</span>
+  <span class="pill" id="version">loading</span>
+  <nav>
+    <a href="/ui/">Session</a>
+    <a href="/ui/author">Authoring</a>
+    <a href="/ui/admin" class="on">Clinical</a>
+  </nav>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Caseload <span class="count" id="caseload-count"></span></h2>
+    <table>
+      <thead><tr>
+        <th>Client</th><th>Pathway</th><th>Progress</th><th>Confidence</th>
+        <th>Lapses</th><th>Queued by rule</th><th>Flags</th>
+      </tr></thead>
+      <tbody id="caseload"></tbody>
+    </table>
+  </div>
+
+  <div class="cols c2">
+    <div class="card">
+      <h2>Decision log <span class="count" id="decision-scope"></span></h2>
+      <p class="tiny muted">Every rule evaluation is recorded, including the ones that did not
+      fire. "Why did it not escalate" is the question that actually gets asked in review, and it
+      is unanswerable if only firings are logged.</p>
+      <table>
+        <thead><tr><th style="width:70px"></th><th>Rule and condition</th><th style="width:33%">Values read</th></tr></thead>
+        <tbody id="decisions"></tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Data sent to model providers</h2>
+        <p class="tiny muted">The Article 30 processing register, written on every outbound
+        call. Counts of masked identifiers, never the values.</p>
+        <table>
+          <thead><tr><th>Provider</th><th>Purpose</th><th>Chars</th><th>Masked</th></tr></thead>
+          <tbody id="egress"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Data protection</h2>
+        <dl class="kv" id="dp"></dl>
+        <p class="tiny muted" style="margin-top:10px">Export returns everything held about a
+        person including this decision log. Erasure removes conversation, embeddings, summaries
+        and identifiers.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const H = { "Authorization": "Bearer root:admin", "Content-Type": "application/json" };
+const $ = (id) => document.getElementById(id);
+const api = async (p, o = {}) => (await fetch(p, { headers: H, ...o })).json();
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+async function boot() {
+  const health = await api("/healthz");
+  $("version").textContent = `content ${health.content_version} · ${health.content_hash}`;
+
+  const clients = await api("/clients");
+  $("caseload-count").textContent = clients.length;
+  $("caseload").innerHTML = clients.map(c => `
+    <tr>
+      <td class="mono">${c.client_id.slice(0, 12)}</td>
+      <td><span class="chip ${c.pathway === "standard" ? "" : "alert"}">${c.pathway.replace(/_/g, " ")}</span></td>
+      <td>${(c.sessions_completed || []).length} of ${((c.sessions_completed || []).length + (c.sessions_remaining || []).length)}
+          <div class="bar" style="width:80px"><span style="width:${c.completion_pct || 0}%"></span></div></td>
+      <td>${c.confidence === undefined || c.confidence === null ? "-" : c.confidence + " / 10"}</td>
+      <td>${c.lapses_recorded ?? 0}</td>
+      <td>${(c.queued || []).map(q => `<span class="chip alert">${q}</span>`).join("") || "-"}</td>
+      <td>${Object.entries(c.flags || {}).filter(([, v]) => v === true)
+             .map(([k]) => `<span class="chip">${k.replace(/_/g, " ")}</span>`).join("") || "-"}</td>
+    </tr>`).join("");
+
+  const subject = clients.find(c => (c.lapses_recorded || 0) > 0) || clients[0];
+  if (!subject) return;
+
+  $("decision-scope").textContent = subject.client_id.slice(0, 12);
+  const decisions = await api(`/clients/${subject.client_id}/decisions`);
+  $("decisions").innerHTML = decisions.slice(-9).map(d => `
+    <tr>
+      <td><span class="state ${d.fired ? "fired" : "quiet"}">${d.fired ? "FIRED" : "no"}</span></td>
+      <td><div class="mono">${d.rule_id}</div><div class="tiny muted mono">${esc(d.expression)}</div></td>
+      <td class="tiny mono">${Object.entries(d.inputs || {})
+        .map(([k, v]) => `${k.split(".").pop()} = ${esc(JSON.stringify(v)).slice(0, 46)}`).join("<br>") || "-"}</td>
+    </tr>`).join("");
+
+  const egress = await api("/admin/egress");
+  $("egress").innerHTML = egress.slice(0, 8).map(e => `
+    <tr>
+      <td class="mono">${e.provider}</td>
+      <td class="tiny">${esc(e.purpose).slice(0, 30)}</td>
+      <td>${e.characters}</td>
+      <td>${Object.entries(e.masked || {}).map(([k, n]) =>
+        `<span class="chip alert">${k} &times;${n}</span>`).join("") || "<span class='muted tiny'>none</span>"}</td>
+    </tr>`).join("") || `<tr><td colspan="4" class="muted tiny">No outbound calls recorded yet.</td></tr>`;
+
+  const providers = [...new Set(egress.map(e => e.provider))];
+  $("dp").innerHTML = [
+    ["Identifiers at rest", "encrypted, single column"],
+    ["Counsellor sees", "pseudonymous id only"],
+    ["Providers contacted", providers.join(", ") || "none"],
+    ["Outbound calls logged", egress.length],
+    ["Article 20 export", "GET /clients/{id}/export"],
+    ["Article 17 erasure", "DELETE /clients/{id}"],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+
+boot();
+</script>
+</body>
+</html>

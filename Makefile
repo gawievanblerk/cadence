@@ -18,6 +18,7 @@ demo-swap:
 demo-content:
 	python scripts/demo_content_change.py
 
+# Serves the API plus the three reference interfaces at /ui/, /ui/author, /ui/admin
 api:
 	uvicorn cadence.api.main:app --reload --port 8000
 

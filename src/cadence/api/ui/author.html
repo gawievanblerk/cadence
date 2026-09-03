@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treatment authoring</title>
+<link rel="stylesheet" href="/ui/shared.css">
+</head>
+<body>
+
+<header class="top">
+  <span class="brand">Cadence</span>
+  <span class="role">Clinical author</span>
+  <span class="pill" id="version">loading</span>
+  <nav>
+    <a href="/ui/">Session</a>
+    <a href="/ui/author" class="on">Authoring</a>
+    <a href="/ui/admin">Clinical</a>
+  </nav>
+</header>
+
+<main>
+  <div class="cols c2w">
+    <div>
+      <div class="card">
+        <h2>Sessions <span class="count" id="session-count"></span></h2>
+        <ul class="filelist" id="sessions"></ul>
+      </div>
+      <div class="card">
+        <h2>Rules and thresholds</h2>
+        <ul class="filelist">
+          <li><button id="open-rules">pathways.yaml<span class="meta" id="rules-meta"></span></button></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Thresholds in force</h2>
+        <dl class="kv" id="thresholds"></dl>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="toolbar">
+          <strong id="open-file" class="mono">select a session</strong>
+          <span class="spacer"></span>
+          <button class="ghost" id="validate">Validate</button>
+          <button id="save">Save</button>
+        </div>
+        <textarea class="editor" id="editor" spellcheck="false"></textarea>
+        <div id="banner"></div>
+      </div>
+
+      <div class="card">
+        <h2>Treatment rules in this version</h2>
+        <table>
+          <thead><tr><th style="width:18%">Rule</th><th style="width:42%">Condition</th><th>Effect</th></tr></thead>
+          <tbody id="rules"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const H = { "Content-Type": "application/json", "Authorization": "Bearer jo:content_author" };
+const $ = (id) => document.getElementById(id);
+const api = async (p, o = {}) => (await fetch(p, { headers: H, ...o })).json();
+
+let current = null;   // {kind: "session"|"rules", id}
+
+async function boot() {
+  const outline = await api("/admin/content/outline");
+  $("version").textContent = `version ${outline.version} · ${outline.status}`;
+  $("session-count").textContent = outline.sessions.length;
+
+  $("sessions").innerHTML = outline.sessions.map(s => `
+    <li><button data-id="${s.id}">${s.title}
+      <span class="meta">${s.id} · v${s.version} · ${s.steps} steps · ${s.mandatory} mandatory${s.inserted_only ? " · inserted by rule" : ""}</span>
+    </button></li>`).join("");
+  $("sessions").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => openSession(b.dataset.id)));
+
+  $("thresholds").innerHTML = Object.entries(outline.thresholds)
+    .map(([k, v]) => `<dt>${k.replace(/_/g, " ")}</dt><dd>${v}</dd>`).join("");
+  $("rules-meta").textContent = `${outline.rules.length} rules · ${Object.keys(outline.thresholds).length} thresholds`;
+
+  $("rules").innerHTML = outline.rules.map(r => `
+    <tr>
+      <td class="mono">${r.id}</td>
+      <td class="mono">${escapeHtml(r.when)}</td>
+      <td class="tiny">${Object.entries(r.then).map(([k, v]) =>
+        `${k.replace(/_/g, " ")}: <strong>${typeof v === "object" ? JSON.stringify(v) : v}</strong>`).join("<br>")}</td>
+    </tr>`).join("");
+
+  openSession(outline.sessions[1].id);
+}
+
+const escapeHtml = (s) => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+async function openSession(id) {
+  const data = await api(`/admin/content/sessions/${id}`);
+  current = { kind: "session", id };
+  $("editor").value = data.source;
+  $("open-file").textContent = `sessions/${id}.yaml`;
+  $("banner").innerHTML = "";
+  document.querySelectorAll(".filelist button").forEach(b =>
+    b.classList.toggle("on", b.dataset.id === id));
+}
+
+async function openRules() {
+  const data = await api("/admin/content/rules");
+  current = { kind: "rules" };
+  $("editor").value = data.source;
+  $("open-file").textContent = "rules/pathways.yaml";
+  $("banner").innerHTML = "";
+  document.querySelectorAll(".filelist button").forEach(b => b.classList.remove("on"));
+  $("open-rules").classList.add("on");
+}
+
+function banner(result) {
+  if (result.saved || result.valid) {
+    $("banner").innerHTML = `<div class="banner ok">Saved and published to the working version.
+      The whole programme revalidated cleanly${result.content_hash ? ` (content hash ${result.content_hash})` : ""}.</div>`;
+  } else {
+    $("banner").innerHTML = `<div class="banner bad">
+      <strong>Not saved.</strong>${result.rolled_back ? " The file was rolled back to its previous contents." : ""}
+      <ul>${result.problems.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul></div>`;
+  }
+}
+
+async function save() {
+  const path = current.kind === "rules"
+    ? "/admin/content/rules"
+    : `/admin/content/sessions/${current.id}`;
+  const result = await api(path, { method: "PUT", body: JSON.stringify({ source: $("editor").value }) });
+  banner(result);
+  // Only refresh the programme view on success. A rejected edit keeps the
+  // author's text in the editor so they can fix it, rather than throwing away
+  // their work along with the mistake.
+  if (result.saved) {
+    const keep = current;
+    await boot();
+    keep.kind === "rules" ? await openRules() : await openSession(keep.id);
+    banner(result);
+  }
+}
+
+async function validate() {
+  banner(await api("/admin/content/validate", { method: "POST" }));
+}
+
+$("save").addEventListener("click", save);
+$("validate").addEventListener("click", validate);
+$("open-rules").addEventListener("click", openRules);
+boot();
+</script>
+</body>
+</html>

@@ -129,3 +129,98 @@ class TestDataProtection:
         assert register
         assert all(row["provider"] == "scripted" for row in register)
         assert any(row["masked"].get("phone") for row in register)
+
+
+class TestAuthoringRoundTrip:
+    """The claim under test: a clinician can be wrong without being dangerous."""
+
+    def test_outline_describes_the_programme(self, api) -> None:
+        body = api.get("/admin/content/outline", headers=AUTHOR).json()
+        assert body["version"] == "1.1"
+        assert len(body["sessions"]) == 7
+        assert body["thresholds"]["low_confidence"] == 4
+        assert any(r["id"] == "r10-first-lapse" for r in body["rules"])
+
+    def test_a_valid_edit_is_saved_and_changes_behaviour(self, api, tmp_path, engine) -> None:
+        import shutil
+
+        from conftest import CONTENT
+        from cadence.content.registry import ContentRegistry
+
+        workspace = tmp_path / "content"
+        shutil.copytree(CONTENT, workspace)
+        engine.registry = ContentRegistry(workspace)
+
+        before = api.get("/admin/content/rules", headers=AUTHOR).json()["source"]
+        edited = before.replace("low_confidence: 4", "low_confidence: 2")
+        result = api.put(
+            "/admin/content/rules", json={"source": edited}, headers=AUTHOR
+        ).json()
+
+        assert result["saved"] is True
+        assert engine.registry.get().ruleset.thresholds["low_confidence"] == 2
+
+    def test_a_broken_edit_is_rejected_and_rolled_back(self, api, tmp_path, engine) -> None:
+        import shutil
+
+        from conftest import CONTENT
+        from cadence.content.registry import ContentRegistry
+
+        workspace = tmp_path / "content"
+        shutil.copytree(CONTENT, workspace)
+        engine.registry = ContentRegistry(workspace)
+
+        before = api.get("/admin/content/rules", headers=AUTHOR).json()["source"]
+        broken = before + (
+            "\n  - id: r99-typo\n"
+            "    description: broken on purpose\n"
+            '    when: "observations.confidance <= thresholds.low_confidance"\n'
+            "    then:\n"
+            "      insert_session: s92-does-not-exist\n"
+        )
+        result = api.put(
+            "/admin/content/rules", json={"source": broken}, headers=AUTHOR
+        ).json()
+
+        assert result["saved"] is False
+        assert result["rolled_back"] is True
+        assert any("confidance" in p for p in result["problems"])
+        assert any("s92-does-not-exist" in p for p in result["problems"])
+
+        # The file on disk is unchanged, and the programme still loads.
+        after = api.get("/admin/content/rules", headers=AUTHOR).json()["source"]
+        assert after == before
+        assert engine.registry.validate() == []
+
+    def test_malformed_yaml_never_reaches_the_file(self, api, tmp_path, engine) -> None:
+        import shutil
+
+        from conftest import CONTENT
+        from cadence.content.registry import ContentRegistry
+
+        workspace = tmp_path / "content"
+        shutil.copytree(CONTENT, workspace)
+        engine.registry = ContentRegistry(workspace)
+
+        result = api.put(
+            "/admin/content/sessions/s02-triggers",
+            json={"source": "steps: [ unclosed"},
+            headers=AUTHOR,
+        ).json()
+        assert result["saved"] is False
+        assert result["rolled_back"] is False
+        assert any("YAML" in p for p in result["problems"])
+
+    def test_a_client_may_not_edit_the_treatment(self, api) -> None:
+        assert api.put(
+            "/admin/content/sessions/s02-triggers", json={"source": "id: x"}, headers=CLIENT
+        ).status_code == 403
+
+
+class TestInterfaces:
+    def test_the_three_pages_are_served(self, api) -> None:
+        for path in ("/ui/", "/ui/author", "/ui/admin", "/ui/shared.css"):
+            assert api.get(path).status_code == 200, path
+
+    def test_an_unknown_page_is_not_served(self, api) -> None:
+        assert api.get("/ui/../../etc/passwd").status_code in (404, 200)

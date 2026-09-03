@@ -23,17 +23,42 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 # Order matters. The more specific identifier patterns run first, because a
 # 13-digit national ID also matches a loose phone pattern, and mislabelling it
 # would understate what was actually sent.
-_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("email", re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")),
-    ("url", re.compile(r"https?://\S+")),
-    ("sa_id", re.compile(r"(?<!\d)\d{13}(?!\d)")),
-    ("card", re.compile(r"(?<!\d)(?:\d[ -]?){14,19}(?!\d)")),
-    ("phone", re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")),
-    ("postcode", re.compile(r"\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b")),
+#
+# Over-masking is a real failure mode, not a safe default. A quit date turned
+# into [PHONE] on the way to the extractor is corrupted clinical data, and it
+# fails silently: the extraction simply returns null and the session records
+# nothing. So the loose patterns carry a `verify` predicate, and a candidate
+# that does not pass it is left alone.
+_ISO_DATE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+
+
+def _looks_like_a_phone_number(candidate: str) -> bool:
+    digits = sum(c.isdigit() for c in candidate)
+    if digits < 9 or digits > 15:
+        return False
+    return not _ISO_DATE.match(candidate.strip())
+
+
+_PATTERNS: list[tuple[str, re.Pattern[str], Any]] = [
+    ("email", re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"), None),
+    ("url", re.compile(r"https?://\S+"), None),
+    ("sa_id", re.compile(r"(?<!\d)\d{13}(?!\d)"), None),
+    (
+        "card",
+        re.compile(r"(?<!\d)(?:\d[ -]?){14,19}(?!\d)"),
+        lambda c: 14 <= sum(x.isdigit() for x in c) <= 19,
+    ),
+    (
+        "phone",
+        re.compile(r"(?<![\w-])\+?\d[\d\s().-]{6,}\d(?![\w-])"),
+        _looks_like_a_phone_number,
+    ),
+    ("postcode", re.compile(r"\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b"), None),
 ]
 
 
@@ -85,10 +110,19 @@ def redact(text: str, *, known_names: list[str] | None = None) -> RedactionRepor
         if n:
             counts["name"] = counts.get("name", 0) + n
 
-    for label, pattern in _PATTERNS:
-        out, n = pattern.subn(f"[{label.upper()}]", out)
-        if n:
-            counts[label] = counts.get(label, 0) + n
+    for label, pattern, verify in _PATTERNS:
+        hits = 0
+
+        def replace(match: re.Match[str], _label: str = label, _verify: Any = verify) -> str:
+            nonlocal hits
+            if _verify is not None and not _verify(match.group(0)):
+                return match.group(0)
+            hits += 1
+            return f"[{_label.upper()}]"
+
+        out = pattern.sub(replace, out)
+        if hits:
+            counts[label] = counts.get(label, 0) + hits
 
     return RedactionReport(out, counts)
 

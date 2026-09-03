@@ -15,14 +15,19 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi.responses import FileResponse
 
+from cadence.api.authoring import ContentWorkspace
 from cadence.api.schemas import (
     EnrolRequest,
     EnrolResponse,
+    PublishBody,
     RespondRequest,
+    SourceBody,
     StartRequest,
     TurnResponse,
 )
@@ -110,6 +115,36 @@ def check_configuration() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Interfaces
+#
+# Three plain HTML pages with no build step and no framework, served by the
+# same process. They call the same API any other client would, so nothing they
+# do is available only to them. They are reference interfaces rather than a
+# finished product: enough to show the treatment engine working, and small
+# enough to throw away when a real front end is built.
+# ---------------------------------------------------------------------------
+
+UI_DIR = Path(__file__).parent / "ui"
+
+
+@app.get("/ui/{page}", include_in_schema=False)
+@app.get("/ui/", include_in_schema=False)
+def ui(page: str = "client.html") -> FileResponse:
+    names = {
+        "": "client.html",
+        "client": "client.html",
+        "author": "author.html",
+        "admin": "admin.html",
+        "shared.css": "shared.css",
+    }
+    filename = names.get(page, page if page.endswith((".html", ".css")) else "client.html")
+    path = UI_DIR / Path(filename).name
+    if not path.exists():
+        raise HTTPException(404, "no such page")
+    return FileResponse(path)
+
+
+# ---------------------------------------------------------------------------
 # Health and configuration
 # ---------------------------------------------------------------------------
 
@@ -180,6 +215,43 @@ def progress(episode_id: str, engine: Engine, caller: Caller) -> dict[str, Any]:
     return engine.progress(episode_id)
 
 
+@app.get("/clients")
+def list_clients(engine: Engine, caller: Caller) -> list[dict[str, Any]]:
+    """The caseload view. Pseudonymous ids only; names are a separate lookup."""
+    caller.require("clinician", "admin")
+    from sqlalchemy import select
+
+    from cadence.db.models import ClientRow, EpisodeRow
+
+    with engine.db.session() as s:
+        clients = list(s.scalars(select(ClientRow).order_by(ClientRow.created_at)))
+        episodes = {e.client_id: e for e in s.scalars(select(EpisodeRow))}
+
+    rows = []
+    for client in clients:
+        episode = episodes.get(client.id)
+        row: dict[str, Any] = {
+            "client_id": client.id,
+            "pathway": client.pathway,
+            "locale": client.locale,
+            "flags": client.flags or {},
+            "erased": client.deleted_at is not None,
+        }
+        if episode is not None:
+            row |= engine.progress(episode.id)
+        rows.append(row)
+    return rows
+
+
+@app.get("/sessions/{run_id}/transcript")
+def transcript(run_id: str, engine: Engine, caller: Caller) -> list[dict[str, Any]]:
+    caller.require("client", "clinician", "admin")
+    return [
+        {"role": t.role, "text": t.text, "step_id": t.step_id, "at": t.created_at.isoformat(), "meta": t.meta}
+        for t in engine.store.turns(run_id)
+    ]
+
+
 @app.get("/clients/{client_id}/decisions")
 def decisions(client_id: str, engine: Engine, caller: Caller) -> list[dict[str, Any]]:
     """Why the programme did what it did. Clinical review, and audit evidence."""
@@ -224,6 +296,60 @@ def validate_content(engine: Engine, caller: Caller, version: str | None = None)
     caller.require("content_author", "admin")
     problems = engine.registry.validate(version)
     return {"valid": not problems, "problems": problems}
+
+
+@app.get("/admin/content/outline")
+def content_outline(engine: Engine, caller: Caller) -> dict[str, Any]:
+    """Everything the authoring screen needs to render the programme."""
+    caller.require("content_author", "clinician", "admin")
+    return ContentWorkspace(engine.registry).outline()
+
+
+@app.get("/admin/content/sessions/{session_id}")
+def read_session(session_id: str, engine: Engine, caller: Caller) -> dict[str, Any]:
+    caller.require("content_author", "clinician", "admin")
+    try:
+        return {"id": session_id, "source": ContentWorkspace(engine.registry).session_source(session_id)}
+    except FileNotFoundError as exc:
+        raise HTTPException(404, f"no session {session_id}") from exc
+
+
+@app.put("/admin/content/sessions/{session_id}")
+def write_session(
+    session_id: str, body: SourceBody, engine: Engine, caller: Caller
+) -> dict[str, Any]:
+    """Save an edited session.
+
+    Writes, revalidates the whole programme, and rolls the file back if the edit
+    broke anything. A clinician can be wrong without being dangerous, which is
+    the only basis on which giving them write access is reasonable.
+    """
+    caller.require("content_author", "admin")
+    result = ContentWorkspace(engine.registry).save_session(session_id, body.source)
+    return result.model_dump()
+
+
+@app.get("/admin/content/rules")
+def read_rules(engine: Engine, caller: Caller) -> dict[str, Any]:
+    caller.require("content_author", "clinician", "admin")
+    return {"source": ContentWorkspace(engine.registry).rules_source()}
+
+
+@app.put("/admin/content/rules")
+def write_rules(body: SourceBody, engine: Engine, caller: Caller) -> dict[str, Any]:
+    caller.require("content_author", "admin")
+    return ContentWorkspace(engine.registry).save_rules(body.source).model_dump()
+
+
+@app.post("/admin/content/publish")
+def publish_version(body: PublishBody, engine: Engine, caller: Caller) -> dict[str, Any]:
+    """Freeze the working content as a new published version."""
+    caller.require("content_author", "admin")
+    workspace = ContentWorkspace(engine.registry)
+    result = workspace.snapshot_version(body.version, body.notes, caller.subject)
+    if not result.saved:
+        raise HTTPException(400, result.model_dump())
+    return result.model_dump()
 
 
 @app.get("/admin/content/diff")

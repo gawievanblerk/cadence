@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your programme</title>
+<link rel="stylesheet" href="/ui/shared.css">
+</head>
+<body>
+
+<header class="top">
+  <span class="brand">Cadence</span>
+  <span class="role">Client</span>
+  <span class="pill" id="provider">counsellor: loading</span>
+  <nav>
+    <a href="/ui/" class="on">Session</a>
+    <a href="/ui/author">Authoring</a>
+    <a href="/ui/admin">Clinical</a>
+  </nav>
+</header>
+
+<main>
+  <div class="cols c2">
+    <div>
+      <div class="card">
+        <h2>Session <span class="count" id="session-title"></span></h2>
+        <div class="thread" id="thread"></div>
+        <div class="composer">
+          <input id="reply" placeholder="Type your answer" autocomplete="off">
+          <button id="send">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Progress</h2>
+        <div class="bar"><span id="pct-bar" style="width:0%"></span></div>
+        <div class="tiny muted" id="pct-label">not started</div>
+        <dl class="kv" id="progress"></dl>
+      </div>
+
+      <div class="card">
+        <h2>Programme</h2>
+        <div id="sessions"></div>
+      </div>
+
+      <div class="card">
+        <h2>What the engine decided</h2>
+        <div class="tiny muted" id="engine-log">Nothing yet.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// The bearer token is the authentication stub. In deployment this comes from
+// the operator's identity provider; the shape of the request does not change.
+const TOKEN = "demo-client:client";
+const H = { "Content-Type": "application/json", "Authorization": "Bearer " + TOKEN };
+
+let episodeId = null, runId = null, clientId = null;
+
+const $ = (id) => document.getElementById(id);
+const api = async (path, opts = {}) =>
+  (await fetch(path, { headers: H, ...opts })).json();
+
+function bubble(role, text) {
+  const el = document.createElement("div");
+  el.className = "turn " + role;
+  el.innerHTML = `<div class="who">${role === "client" ? "You" : "Counsellor"}</div>` +
+    text.split(/\n\s*\n/).map(p => `<p>${escapeHtml(p.trim())}</p>`).join("");
+  $("thread").appendChild(el);
+  el.scrollIntoView({ block: "end" });
+}
+
+function engineNote(text) {
+  const el = document.createElement("div");
+  el.className = "engine-note";
+  el.textContent = text;
+  $("thread").appendChild(el);
+}
+
+const escapeHtml = (s) => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+async function boot() {
+  const health = await api("/healthz");
+  $("provider").textContent = "counsellor: " + health.roles.counsellor;
+
+  // Resume an existing episode when one is named, otherwise enrol. Resuming is
+  // what a returning client does; the engine decides which session is open.
+  const params = new URLSearchParams(location.search);
+  if (params.get("episode")) {
+    episodeId = params.get("episode");
+    clientId = params.get("client") || "";
+  } else {
+    const enrolment = await fetch("/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer ui:clinician" },
+      body: JSON.stringify({ identity: { name: "Demo Client" }, locale: "en" })
+    }).then(r => r.json());
+    clientId = enrolment.client_id;
+    episodeId = enrolment.episode_id;
+  }
+
+  const body = params.get("session") ? { session_id: params.get("session") } : {};
+  const started = await api(`/episodes/${episodeId}/sessions`, {
+    method: "POST", body: JSON.stringify(body)
+  });
+  render(started);
+  refresh();
+}
+
+function render(turn) {
+  runId = turn.session_run_id;
+  if (turn.text) bubble("counsellor", turn.text);
+  (turn.notes || []).forEach(engineNote);
+  (turn.rules_fired || []).forEach(r => engineNote("rule fired: " + r));
+  $("send").disabled = !turn.awaiting_client;
+  $("reply").disabled = !turn.awaiting_client;
+  if (turn.finished) {
+    engineNote("session complete");
+    $("reply").placeholder = "This session is finished";
+  }
+}
+
+async function send() {
+  const text = $("reply").value.trim();
+  if (!text) return;
+  bubble("client", text);
+  $("reply").value = "";
+  $("send").disabled = true;
+  const turn = await api(`/sessions/${runId}/turns`, {
+    method: "POST", body: JSON.stringify({ text })
+  });
+  render(turn);
+  refresh();
+}
+
+async function refresh() {
+  const p = await api(`/episodes/${episodeId}/progress`);
+  const done = p.sessions_completed.length;
+  const total = done + p.sessions_remaining.length;
+  $("pct-bar").style.width = p.completion_pct + "%";
+  $("pct-label").textContent = `${done} of ${total} sessions complete`;
+  $("session-title").textContent = "";
+
+  $("progress").innerHTML = [
+    ["Pathway", p.pathway.replace("_", " ")],
+    ["Quit date", p.quit_date || "not set"],
+    ["Confidence", p.confidence === null ? "-" : p.confidence + " / 10"],
+    ["Strongest craving", p.craving_intensity === null ? "-" : p.craving_intensity + " / 10"],
+    ["Triggers recorded", p.triggers_recorded],
+    ["Lapses recorded", p.lapses_recorded],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+
+  const chips = [];
+  p.sessions_completed.forEach(s => chips.push(`<span class="chip on">${s}</span>`));
+  p.queued.forEach(s => chips.push(`<span class="chip alert">${s} &middot; inserted</span>`));
+  p.sessions_remaining.forEach(s => chips.push(`<span class="chip">${s}</span>`));
+  $("sessions").innerHTML = chips.join("");
+
+  if (!clientId) clientId = p.client_id;
+  const decisions = await fetch(`/clients/${clientId}/decisions`, {
+    headers: { "Authorization": "Bearer ui:clinician" }
+  }).then(r => r.json());
+  const fired = decisions.filter(d => d.fired);
+  $("engine-log").innerHTML = fired.length
+    ? fired.map(d => `<div class="mono">${d.rule_id}</div><div>${d.expression}</div>`).join("<br>")
+    : `${decisions.length} rules evaluated, none fired yet.`;
+}
+
+$("send").addEventListener("click", send);
+$("reply").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+boot();
+</script>
+</body>
+</html>
