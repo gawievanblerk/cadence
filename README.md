@@ -25,6 +25,7 @@ make demo           # a client's first month, five sessions, including a lapse
 make demo-swap      # what changes when you change vendor, and what does not
 make demo-content   # a clinician edits a threshold and the pathway changes
 make api            # FastAPI on :8000
+make walkthrough    # records a captioned video of the three interfaces
 ```
 
 With the server up there are three reference interfaces, all of them calling the
