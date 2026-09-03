@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "audience": {
+      "default": "client",
+      "enum": [
+        "client",
+        "clinician"
+      ],
+      "title": "Audience",
+      "type": "string"
+    },
+    "body": {
+      "title": "Body",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "body"
+  ],
+  "title": "KnowledgeDoc",
+  "type": "object"
+}

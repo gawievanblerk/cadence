@@ -1,0 +1,97 @@
+id: s90-lapse-recovery
+version: 2
+title: After a lapse
+phase: recovery
+sequence: 900
+estimated_minutes: 20
+
+objectives:
+  - Separate a lapse from a relapse, explicitly and early
+  - Extract the specific chain of events rather than a general explanation
+  - Restore a dated commitment before the session ends
+
+# This session is never scheduled in the ordinary sequence. It is inserted by a
+# rule, which is why its `sequence` sits out of the way of the main program.
+opens_when: "flags.lapse_active == True"
+
+recall:
+  - lapse
+  - trigger_situation
+  - technique_used
+  - quit_date
+  - confidence
+
+mandatory:
+  - id: m90-no-blame
+    description: >
+      A lapse is treated as information about the plan, not about the client.
+    prohibition: >
+      Do not use the words relapse, failure, setback, slip-up, or any phrasing
+      that frames what happened as a return to the beginning. Do not ask why the
+      client did it.
+
+  - id: m90-new-commitment
+    description: >
+      The session may not close without a restated, dated commitment.
+    requires: "defined(observations.commitment)"
+    satisfied_by: [q-recommit]
+
+steps:
+  - id: frame
+    kind: say
+    style_hint: level, brief, no reassurance beyond the fact stated
+    text: |
+      One cigarette after a period without is a lapse. It is a normal part of
+      most successful attempts and it is not the same thing as going back. What
+      we do now decides which of the two it turns out to have been.
+
+  - id: q-chain
+    kind: ask
+    text: |
+      Start from an hour before. What was happening, and what was the last point
+      at which it could still have gone differently?
+    capture:
+      - name: trigger_situation
+        kind: list[string]
+        description: The situation the lapse arose from, in specific terms.
+        maps_to: trigger_situation
+      - name: barrier
+        kind: list[string]
+        description: What made the planned response unavailable in the moment.
+        maps_to: barrier
+
+  - id: teach-lapse
+    kind: teach
+    knowledge_ref: kb-lapse-vs-relapse
+
+  - id: q-plan-gap
+    kind: ask
+    text: |
+      Our plan had a response for that kind of moment. What would have had to be
+      different for you to have reached it?
+    capture:
+      - name: technique_used
+        kind: list[string]
+        description: Revised or replacement coping response.
+        maps_to: technique_used
+
+  - id: q-recommit
+    kind: ask
+    text: |
+      Where does that leave the commitment? Same date, from today, or something
+      else?
+    capture:
+      - name: commitment
+        kind: string
+        description: The restated commitment and the date it runs from.
+        maps_to: commitment
+
+  - id: close
+    kind: say
+    text: |
+      We pick the program back up where we left it. Nothing before this week
+      stops counting.
+
+on_complete:
+  set_flag:
+    lapse_active: false

@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "ProgramVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "status": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "published",
+            "retired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "sessions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sessions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version",
+        "sessions"
+      ],
+      "title": "ProgramVersion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The manifest. This is the file that makes a set of YAML files a program.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "locales": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Locales",
+      "type": "array"
+    },
+    "default_locale": {
+      "default": "en",
+      "title": "Default Locale",
+      "type": "string"
+    },
+    "persona": {
+      "description": "Who the counsellor is, in the clinician's own words",
+      "title": "Persona",
+      "type": "string"
+    },
+    "global_prohibitions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Global Prohibitions",
+      "type": "array"
+    },
+    "safety": {
+      "additionalProperties": true,
+      "title": "Safety",
+      "type": "object"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/ProgramVersion"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "persona",
+    "versions"
+  ],
+  "title": "Program",
+  "type": "object"
+}

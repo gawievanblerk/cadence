@@ -1,0 +1,169 @@
+id: s01-intake
+version: 4
+title: First conversation and baseline
+phase: preparation
+sequence: 10
+estimated_minutes: 30
+
+objectives:
+  - Establish how much nicotine the client currently uses and in what form
+  - Record the client's own reasons for stopping, in their own words
+  - Take a baseline confidence rating
+  - Agree a provisional quit date
+
+recall: []
+
+mandatory:
+  - id: m01-baseline-use
+    description: >
+      The intake may not be completed without a recorded baseline of nicotine
+      use. Everything downstream is measured against it.
+    requires: "defined(observations.nicotine_use)"
+    satisfied_by: [q-current-use]
+
+  - id: m01-own-reasons
+    description: >
+      At least two reasons for stopping must be recorded in the client's own
+      words. Reasons supplied by the counsellor do not count.
+    requires: "count(history.goal) >= 2"
+    satisfied_by: [q-reasons]
+
+  - id: m01-no-quit-advice-yet
+    description: >
+      Do not suggest any cessation technique during intake. This session
+      gathers; it does not treat.
+    prohibition: >
+      Do not suggest, describe or recommend any quitting technique, aid or
+      strategy in this session, even if the client asks for one. Tell them the
+      next session covers exactly that.
+
+steps:
+  - id: welcome
+    kind: say
+    style_hint: warm, unhurried, three sentences at most
+    text: |
+      Welcome. Over the next few months we are going to work through this
+      together, one session at a time. Today I only want to understand where
+      you are starting from, so nothing you say here is a commitment yet.
+
+  - id: q-current-use
+    kind: ask
+    text: |
+      Tell me about your nicotine use as it is now. What do you use, roughly how
+      much on an ordinary day, and how long has it been at about that level?
+    capture:
+      - name: nicotine_use
+        kind: text
+        description: >
+          Form of nicotine (cigarettes, vape, pouches, other), approximate daily
+          quantity, and how long at that level.
+        maps_to: nicotine_use
+      - name: daily_quantity
+        kind: number
+        description: Approximate units per day as a single number, if one can be inferred.
+        required: false
+        maps_to: nicotine_use
+    followup:
+      max: 2
+      when: "not defined(capture.daily_quantity)"
+      instruction: >
+        The client has not given a number. Ask once, plainly, for their best
+        estimate of an ordinary day. Accept a range. Do not press a third time.
+
+  - id: q-first-of-day
+    kind: ask
+    text: |
+      On an ordinary morning, how long after you wake up before your first one?
+    capture:
+      - name: time_to_first_use
+        kind: string
+        description: Time from waking to first nicotine use, as stated.
+        maps_to: free_note
+
+  - id: q-reasons
+    kind: ask
+    text: |
+      Why now? What is making you think about stopping at this point in your life
+      rather than a year ago or a year from now?
+    capture:
+      - name: goal
+        kind: list[string]
+        description: >
+          The client's own reasons for stopping, one per item, in their words
+          rather than paraphrased into clinical language.
+        min_items: 1
+        maps_to: goal
+    followup:
+      max: 2
+      when: "count(capture.goal) < 2"
+      instruction: >
+        Ask whether there is anything else behind the decision. Do not offer
+        examples; suggested reasons are not the client's reasons.
+
+  - id: q-previous-attempts
+    kind: ask
+    text: |
+      Have you stopped before? If you have, I would like to know what happened
+      rather than how it ended.
+    capture:
+      - name: technique_used
+        kind: list[string]
+        description: Methods or aids used in previous attempts.
+        required: false
+        maps_to: technique_used
+      - name: barrier
+        kind: list[string]
+        description: What the client says brought previous attempts to an end.
+        required: false
+        maps_to: barrier
+
+  - id: rate-confidence
+    kind: scale
+    text: |
+      On a scale of nought to ten, how confident do you feel right now that you
+      can stop and stay stopped? Nought is not at all, ten is completely certain.
+    capture:
+      - name: confidence
+        kind: integer
+        description: Baseline confidence, 0-10.
+        range: [0, 10]
+        maps_to: confidence
+
+  - id: probe-low-confidence
+    kind: ask
+    when: "observations.confidence <= thresholds.low_confidence"
+    text: |
+      That is a useful honest answer. What would need to be different for that
+      number to be one point higher?
+    capture:
+      - name: barrier
+        kind: list[string]
+        description: What the client believes stands between them and more confidence.
+        maps_to: barrier
+
+  - id: q-quit-date
+    kind: ask
+    text: |
+      I would like to pencil in a date. Not today, and not so far away that it
+      stops feeling real. Somewhere between one and three weeks from now. What
+      date would you choose?
+    capture:
+      - name: quit_date
+        kind: date
+        description: Provisional quit date in ISO format.
+        maps_to: quit_date
+
+  - id: assign-diary
+    kind: assign
+    exercise_ref: ex-use-diary
+
+  - id: close
+    kind: say
+    text: |
+      That is everything I needed for today. Before we next speak, keep the
+      diary as we discussed. Next time we look at when the urges actually come,
+      which is where the real work starts.
+
+on_complete:
+  set_flag:
+    intake_done: true

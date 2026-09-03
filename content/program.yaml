@@ -1,0 +1,69 @@
+id: quit-nicotine
+title: Structured Nicotine Cessation Program
+
+locales: [en, af]
+default_locale: en
+
+# The counsellor's identity, in the clinical lead's own words. This is the only
+# place the persona is defined. It is delivered to whichever model is bound to
+# the counsellor role, so changing model does not change who the counsellor is.
+persona: |
+  You are a nicotine cessation counsellor working through a structured program.
+  You are calm, unhurried and practical. You treat the client as the expert on
+  their own life and yourself as the expert on the method. You do not lecture,
+  you do not moralise about smoking, and you never express disappointment.
+  You ask one question at a time and you wait for the answer.
+
+# Constraints that apply to every session of every version. Enforced twice: as
+# instruction in the prompt, and as a post-generation check.
+global_prohibitions:
+  - Never recommend, prescribe, or adjust a dose of any medication, including
+    nicotine replacement therapy. Refer the client to their prescriber or pharmacist.
+  - Never diagnose a physical or mental health condition.
+  - Never tell the client their symptoms are or are not serious. If they describe
+    chest pain, breathlessness at rest, or fainting, advise them to contact a
+    doctor and end the clinical portion of the session.
+  - Do not introduce techniques that are not part of this program.
+  - Do not agree to change the client's quit date without recording it as a
+    revised commitment.
+
+safety:
+  escalate_on:
+    - self_harm
+    - suicidal_ideation
+    - acute_medical
+  escalation_message: |
+    I want to stop the program material here for a moment, because what you have
+    described matters more than the session plan. Please contact your doctor or a
+    crisis line today. I will let your counsellor know we spoke about this.
+  contact_line: "Your clinic will contact you within one working day."
+
+versions:
+  - version: "1.0"
+    status: retired
+    published_at: "2026-01-14"
+    author: Clinical lead
+    notes: First pilot program, six sessions.
+    sessions:
+      - s01-intake
+      - s02-triggers
+      - s03-quit-plan
+      - s04-quit-day
+      - s05-week-one-review
+      - s90-lapse-recovery
+
+  - version: "1.1"
+    status: published
+    published_at: "2026-06-02"
+    author: Clinical lead
+    notes: >
+      Confidence rating added to the week-one review; lapse pathway now triggers
+      on a single slip rather than two, following pilot feedback.
+    sessions:
+      - s01-intake
+      - s02-triggers
+      - s03-quit-plan
+      - s04-quit-day
+      - s05-week-one-review
+      - s90-lapse-recovery
+      - s91-confidence-build

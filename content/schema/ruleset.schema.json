@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "priority": {
+          "default": 100,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "when": {
+          "title": "When",
+          "type": "string"
+        },
+        "then": {
+          "$ref": "#/$defs/RuleEffect"
+        },
+        "once": {
+          "default": true,
+          "title": "Once",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "when",
+        "then"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "RuleEffect": {
+      "additionalProperties": false,
+      "properties": {
+        "insert_session": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Insert Session"
+        },
+        "remove_session": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remove Session"
+        },
+        "set_pathway": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Set Pathway"
+        },
+        "set_flag": {
+          "additionalProperties": true,
+          "title": "Set Flag",
+          "type": "object"
+        },
+        "notify": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notify",
+          "type": "array"
+        },
+        "escalate": {
+          "default": false,
+          "title": "Escalate",
+          "type": "boolean"
+        },
+        "message_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message Ref"
+        }
+      },
+      "title": "RuleEffect",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "thresholds": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Thresholds",
+      "type": "object"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    }
+  },
+  "title": "RuleSet",
+  "type": "object"
+}

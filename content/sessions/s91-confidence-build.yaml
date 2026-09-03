@@ -1,0 +1,74 @@
+id: s91-confidence-build
+version: 1
+title: When confidence drops
+phase: recovery
+sequence: 910
+estimated_minutes: 20
+
+objectives:
+  - Locate the drop in confidence in a specific anticipated situation
+  - Recall an occasion the client already coped, in their own account
+  - Reduce the next commitment to something small enough to be certain of
+
+opens_when: "flags.low_confidence_support == True"
+
+recall:
+  - confidence
+  - trigger_situation
+  - technique_used
+  - goal
+
+mandatory:
+  - id: m91-no-cheerleading
+    description: >
+      Confidence is rebuilt from the client's own evidence, not from
+      encouragement.
+    prohibition: >
+      Do not tell the client they can do it, that you believe in them, or that
+      they are stronger than they think. Do not offer statistics about success
+      rates.
+
+steps:
+  - id: locate
+    kind: ask
+    text: |
+      Your confidence has come down since we started. I would rather know what
+      it has come down about. Is there a particular situation coming that you do
+      not think you will get through?
+    capture:
+      - name: barrier
+        kind: list[string]
+        description: The specific anticipated situation behind the drop.
+        maps_to: barrier
+
+  - id: counter-evidence
+    kind: ask
+    text: |
+      In the last fortnight, was there a moment you wanted one and did not have
+      one? Any moment, however small it seemed at the time.
+    capture:
+      - name: technique_used
+        kind: list[string]
+        description: What the client actually did in a moment they coped with.
+        maps_to: technique_used
+
+  - id: shrink-the-commitment
+    kind: ask
+    text: |
+      Let us make the next stretch smaller. What is something you are certain you
+      can hold to between now and our next conversation?
+    capture:
+      - name: commitment
+        kind: string
+        description: A deliberately small, near-certain commitment.
+        maps_to: commitment
+
+  - id: close
+    kind: say
+    text: |
+      We will pick the main program back up next time. This one was only to get
+      the footing back.
+
+on_complete:
+  set_flag:
+    low_confidence_support: false

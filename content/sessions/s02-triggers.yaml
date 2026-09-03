@@ -1,0 +1,101 @@
+id: s02-triggers
+version: 3
+title: Mapping the urges
+phase: preparation
+sequence: 20
+estimated_minutes: 25
+
+objectives:
+  - Record at least three specific situations in which the client uses nicotine
+  - Rate the strength of the strongest of them
+  - Teach one urge-management technique and attach it to a named situation
+
+opens_when: "'s01-intake' in episode.sessions_completed and days_since('s01-intake') >= 1"
+
+recall:
+  - nicotine_use
+  - goal
+  - confidence
+  - quit_date
+
+mandatory:
+  - id: m02-three-triggers
+    description: >
+      Three distinct trigger situations must be recorded before this session can
+      close. Fewer than three does not give us enough to plan against.
+    requires: "count(history.trigger_situation) >= 3"
+    satisfied_by: [q-triggers]
+
+  - id: m02-technique-attached
+    description: >
+      The client must name which situation they will apply the technique to.
+      A technique taught in the abstract is not a technique.
+    requires: "defined(observations.commitment)"
+    satisfied_by: [q-attach-technique]
+
+steps:
+  - id: recall-last-time
+    kind: reflect
+    style_hint: two sentences, no more
+    text: |
+      Open by reflecting back what was recorded at intake about their use and
+      their reasons, and check it still reads true to them.
+
+  - id: q-triggers
+    kind: ask
+    text: |
+      Think about yesterday, or the last ordinary day you had. Walk me through
+      the moments you reached for it. I am after the situation rather than the
+      time of day: what was happening, who you were with, what you were feeling.
+    capture:
+      - name: trigger_situation
+        kind: list[string]
+        description: >
+          Specific situations, each one concrete enough to plan against. "After
+          a meal with my brother" counts; "when I am stressed" does not, and
+          should be probed into something specific.
+        min_items: 1
+        maps_to: trigger_situation
+    followup:
+      max: 3
+      when: "count(capture.trigger_situation) < 3"
+      instruction: >
+        Ask for one more situation. If a situation given is vague, ask for the
+        last concrete instance of it instead of accepting the category.
+
+  - id: rate-strongest
+    kind: scale
+    text: |
+      Of the ones you have described, take the strongest. How hard is that one
+      to sit through, nought to ten?
+    capture:
+      - name: craving_intensity
+        kind: integer
+        description: Intensity of the strongest named trigger, 0-10.
+        range: [0, 10]
+        maps_to: craving_intensity
+
+  - id: teach-urge-surfing
+    kind: teach
+    knowledge_ref: kb-urge-surfing
+    style_hint: plain language, no more than 150 words, no metaphors beyond the one in the document
+
+  - id: q-attach-technique
+    kind: ask
+    text: |
+      Which of the situations you described will you try that on first?
+    capture:
+      - name: commitment
+        kind: string
+        description: The situation the client commits to applying the technique to.
+        maps_to: commitment
+
+  - id: assign-diary
+    kind: assign
+    exercise_ref: ex-urge-log
+
+  - id: close
+    kind: say
+    text: |
+      Good. Between now and next time, log the urges as we discussed, and try the
+      technique on the situation you picked. It does not have to work yet.

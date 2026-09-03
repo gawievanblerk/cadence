@@ -1,0 +1,66 @@
+id: s04-quit-day
+version: 2
+title: Quit day
+phase: action
+sequence: 40
+estimated_minutes: 15
+
+objectives:
+  - Mark the transition explicitly
+  - Rehearse the first difficult moment before it happens
+  - Take a confidence rating on the day itself
+
+opens_when: "'s03-quit-plan' in episode.sessions_completed"
+
+recall:
+  - quit_date
+  - trigger_situation
+  - technique_used
+  - support_person
+
+mandatory:
+  - id: m04-confidence-taken
+    description: A same-day confidence rating is required for the week-one comparison.
+    requires: "defined(observations.confidence)"
+    satisfied_by: [rate-confidence]
+
+steps:
+  - id: mark-the-day
+    kind: say
+    style_hint: short, level, not celebratory
+    text: |
+      Today is the day. There is nothing clever to say about it. From here the
+      work is getting through single moments, one at a time.
+
+  - id: rate-confidence
+    kind: scale
+    text: |
+      Nought to ten, today: how confident are you?
+    capture:
+      - name: confidence
+        kind: integer
+        description: Confidence on quit day, 0-10.
+        range: [0, 10]
+        maps_to: confidence
+
+  - id: rehearse
+    kind: ask
+    text: |
+      Between now and bedtime, which moment are you most wary of? Talk me through
+      what you will actually do when it arrives.
+    capture:
+      - name: commitment
+        kind: string
+        description: The rehearsed response to today's anticipated hardest moment.
+        maps_to: commitment
+
+  - id: withdrawal
+    kind: teach
+    knowledge_ref: kb-withdrawal-timeline
+    style_hint: factual and brief, no reassurance that is not in the document
+
+  - id: close
+    kind: say
+    text: |
+      We speak in a week. If something goes wrong before then, that is a reason
+      to open the app sooner, not later.

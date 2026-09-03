@@ -1,0 +1,16 @@
+A nicotine cessation session has just finished. Write the record that the next
+session will read, months from now, instead of the transcript.
+
+Session: {{ session_title }}
+Objectives the session was working towards:
+{% for objective in objectives %}  - {{ objective }}
+{% endfor %}
+
+What was recorded during this session:
+{{ facts }}
+
+The conversation:
+{{ transcript }}
+
+Write it as a colleague handing over: what the client said, what changed, what
+was agreed. No interpretation of their character, no advice, no encouragement.

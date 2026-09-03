@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# Treatment rules for program version 1.1.
+#
+# These are evaluated by arithmetic, not by a language model. Whether a client
+# is routed into lapse recovery is a decision the clinical team makes here, in
+# this file, and can point to afterwards.
+#
+# Thresholds are named rather than inlined so that a clinician can tune the
+# program by changing a number, and so that every rule that depends on the same
+# number moves together.
+# ---------------------------------------------------------------------------
+
+thresholds:
+  low_confidence: 4
+  very_low_confidence: 2
+  high_craving: 7
+  min_triggers_for_plan: 3
+  stalled_days: 14
+  confidence_drop_points: 3
+
+rules:
+  # --- safety comes first, and cannot be undone by a later rule --------------
+  - id: r00-safety-escalation
+    description: >
+      Any recorded safety concern stops program delivery and notifies the
+      clinical team, regardless of anything else in the client's record.
+    priority: 0
+    once: false
+    when: "defined(observations.safety_concern)"
+    then:
+      escalate: true
+      notify: [clinician, duty_line]
+      set_flag:
+        program_paused: true
+
+  # --- lapse handling -------------------------------------------------------
+  - id: r10-first-lapse
+    description: >
+      Any nicotine use after the quit date inserts the lapse recovery session
+      before the next scheduled session. Changed in version 1.1 from two
+      recorded uses to one, following pilot feedback that the second was
+      routinely never reported.
+    priority: 10
+    when: "observations.nicotine_use == True and defined(episode.quit_date)"
+    then:
+      insert_session: s90-lapse-recovery
+      set_pathway: lapse_recovery
+      set_flag:
+        lapse_active: true
+      notify: [clinician]
+
+  - id: r11-repeated-lapse
+    description: >
+      Three or more separate lapses moves the client to the intensive pathway
+      and asks a human to review the case.
+    priority: 11
+    when: "count(history.lapse) >= 3"
+    then:
+      set_pathway: intensive
+      notify: [clinician]
+      set_flag:
+        review_requested: true
+
+  # --- confidence -----------------------------------------------------------
+  - id: r20-low-confidence
+    description: >
+      Confidence at or below the low threshold inserts the confidence session.
+    priority: 20
+    when: "observations.confidence <= thresholds.low_confidence"
+    then:
+      insert_session: s91-confidence-build
+      set_flag:
+        low_confidence_support: true
+
+  - id: r21-confidence-collapse
+    description: >
+      A very low rating is treated as a clinical signal rather than a program
+      branch, and a human is told.
+    priority: 21
+    when: "observations.confidence <= thresholds.very_low_confidence"
+    then:
+      notify: [clinician]
+      set_flag:
+        review_requested: true
+
+  # --- engagement -----------------------------------------------------------
+  - id: r30-stalled
+    description: >
+      No completed session for two weeks triggers outreach rather than another
+      automated reminder.
+    priority: 30
+    when: "days_since(episode.last_session_at) >= thresholds.stalled_days"
+    then:
+      notify: [care_coordinator]
+      set_flag:
+        outreach_due: true
+
+  # --- progression ----------------------------------------------------------
+  - id: r40-maintenance
+    description: >
+      Four weeks past the quit date with no recorded use moves the client onto
+      the maintenance pathway.
+    priority: 40
+    when: "days_since(episode.quit_date) >= 28 and count(history.lapse) == 0"
+    then:
+      set_pathway: maintenance

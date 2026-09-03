@@ -1,0 +1,45 @@
+# Treatment rules as they stood in program version 1.0.
+#
+# Kept so that clients who started an episode under 1.0 finish it under 1.0,
+# and so that the two versions can be diffed. The two substantive differences
+# from 1.1 are recorded in the manifest notes: the lapse pathway needed two
+# recorded uses, and there was no confidence session to route into.
+
+thresholds:
+  low_confidence: 3
+  very_low_confidence: 2
+  high_craving: 7
+  min_triggers_for_plan: 3
+  stalled_days: 21
+
+rules:
+  - id: r00-safety-escalation
+    description: Any recorded safety concern stops program delivery.
+    priority: 0
+    once: false
+    when: "defined(observations.safety_concern)"
+    then:
+      escalate: true
+      notify: [clinician, duty_line]
+      set_flag:
+        program_paused: true
+
+  - id: r10-first-lapse
+    description: Two or more recorded uses after the quit date insert lapse recovery.
+    priority: 10
+    when: "count(history.lapse) >= 2"
+    then:
+      insert_session: s90-lapse-recovery
+      set_pathway: lapse_recovery
+      set_flag:
+        lapse_active: true
+      notify: [clinician]
+
+  - id: r30-stalled
+    description: No completed session for three weeks triggers outreach.
+    priority: 30
+    when: "days_since(episode.last_session_at) >= thresholds.stalled_days"
+    then:
+      notify: [care_coordinator]
+      set_flag:
+        outreach_due: true

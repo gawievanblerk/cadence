@@ -1,0 +1,119 @@
+id: s05-week-one-review
+version: 3
+title: The first week
+phase: action
+sequence: 50
+estimated_minutes: 25
+
+objectives:
+  - Establish whether any nicotine has been used since the quit date
+  - Review which planned techniques were actually used and whether they helped
+  - Re-rate confidence against the quit-day baseline
+
+opens_when: "'s04-quit-day' in episode.sessions_completed and days_since('s04-quit-day') >= 5"
+
+recall:
+  - quit_date
+  - confidence
+  - trigger_situation
+  - technique_used
+  - commitment
+
+mandatory:
+  - id: m05-ask-use-directly
+    description: >
+      Use since the quit date must be asked about directly and without
+      euphemism, and the answer recorded, even where the client volunteers it.
+    requires: "defined(observations.nicotine_use)"
+    satisfied_by: [q-any-use]
+
+  - id: m05-no-praise-for-abstinence
+    description: >
+      Do not praise the client for not smoking, and do not express
+      disappointment if they have. Both make the next honest answer less likely.
+    prohibition: >
+      Do not congratulate, praise, or express pride, and do not express
+      disappointment, concern about the client's willpower, or surprise. Respond
+      to what happened, not to how it reflects on them.
+
+steps:
+  - id: open
+    kind: say
+    text: |
+      A week in. I want the plain version of how it went, including the parts
+      that did not go the way the plan said.
+
+  - id: q-any-use
+    kind: ask
+    text: |
+      Since the date, have you used any nicotine at all? Any amount, including a
+      drag of someone else's.
+    capture:
+      - name: nicotine_use
+        kind: boolean
+        description: Whether any nicotine has been used since the quit date.
+        maps_to: nicotine_use
+      - name: lapse_detail
+        kind: text
+        description: If yes, what happened, where, and with whom.
+        required: false
+        maps_to: lapse
+
+  - id: branch-on-use
+    kind: branch
+    branches:
+      - when: "capture.nicotine_use == True"
+        goto: q-lapse-circumstances
+      - when: "capture.nicotine_use == False"
+        goto: q-techniques-used
+
+  - id: q-lapse-circumstances
+    kind: ask
+    text: |
+      Take me through it as it happened. Not why, yet. Where you were, what had
+      been going on that day, and what you did afterwards.
+    capture:
+      - name: lapse
+        kind: text
+        description: Circumstances of the lapse, as narrated.
+        maps_to: lapse
+      - name: trigger_situation
+        kind: list[string]
+        description: Any new trigger situation the lapse reveals.
+        required: false
+        maps_to: trigger_situation
+
+  - id: q-techniques-used
+    kind: ask
+    text: |
+      Of the responses we planned, which ones did you actually reach for, and
+      what happened when you did?
+    capture:
+      - name: technique_used
+        kind: list[string]
+        description: Techniques the client actually applied this week.
+        required: false
+        maps_to: technique_used
+      - name: technique_effectiveness
+        kind: integer
+        description: How useful the techniques were overall, 0-10.
+        range: [0, 10]
+        required: false
+        maps_to: technique_effectiveness
+
+  - id: rate-confidence
+    kind: scale
+    text: |
+      Same question as on the day. Nought to ten, how confident are you now?
+    capture:
+      - name: confidence
+        kind: integer
+        description: Confidence at one week, 0-10.
+        range: [0, 10]
+        maps_to: confidence
+
+  - id: close
+    kind: say
+    text: |
+      That is the review done. What we do next depends on what you have just
+      told me, and I will have that ready for our next conversation.

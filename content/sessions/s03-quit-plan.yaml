@@ -1,0 +1,126 @@
+id: s03-quit-plan
+version: 2
+title: Building the plan
+phase: preparation
+sequence: 30
+estimated_minutes: 30
+
+objectives:
+  - Confirm or revise the quit date
+  - Attach a specific coping response to each recorded trigger situation
+  - Identify one support person
+  - Remove nicotine and paraphernalia from the client's environment
+
+opens_when: "'s02-triggers' in episode.sessions_completed"
+
+recall:
+  - trigger_situation
+  - craving_intensity
+  - commitment
+  - quit_date
+  - confidence
+
+mandatory:
+  - id: m03-plan-covers-triggers
+    description: >
+      Every trigger situation recorded in session 2 must have a coping response
+      attached before the plan is considered complete.
+    requires: "count(history.technique_used) >= count(history.trigger_situation)"
+    satisfied_by: [q-plan-each]
+
+  - id: m03-date-confirmed
+    description: The quit date must be explicitly confirmed or explicitly revised.
+    requires: "defined(observations.quit_date)"
+    satisfied_by: [q-confirm-date]
+
+steps:
+  - id: recall-triggers
+    kind: reflect
+    text: |
+      Read back the trigger situations recorded in the previous session and ask
+      whether the list is still right, or whether the diary turned up others.
+
+  - id: q-plan-each
+    kind: ask
+    text: |
+      Let us take them one at a time. For each situation, what will you do
+      instead? I want something you could actually do in that moment, not
+      something you would have to be in a good mood to manage.
+    capture:
+      - name: technique_used
+        kind: list[string]
+        description: >
+          One coping response per trigger situation, each phrased as a concrete
+          action. Pair each with the situation it belongs to.
+        min_items: 1
+        maps_to: technique_used
+    followup:
+      max: 3
+      when: "count(capture.technique_used) < count(history.trigger_situation)"
+      instruction: >
+        Name the situations that still have no response attached, and ask about
+        those specifically. Do not supply the answer.
+
+  - id: q-support
+    kind: ask
+    text: |
+      Who will you tell? One person is enough, but it needs to be someone who
+      will actually ask you about it.
+    capture:
+      - name: support_person
+        kind: string
+        description: Relationship of the named support person. Do not record their name.
+        maps_to: support_person
+
+  - id: q-environment
+    kind: choice
+    text: |
+      Before the date, everything goes: the packets, the lighters, the spare in
+      the car, the one in the drawer. When will you do that?
+    options:
+      - The evening before
+      - The weekend before
+      - Today
+      - I would rather not throw them away
+    capture:
+      - name: environment_clear_when
+        kind: string
+        description: When the client will clear their environment.
+        options:
+          - The evening before
+          - The weekend before
+          - Today
+          - I would rather not throw them away
+        maps_to: commitment
+
+  - id: probe-keeping-supply
+    kind: ask
+    when: "capture.environment_clear_when == 'I would rather not throw them away'"
+    text: |
+      That is worth talking about rather than arguing about. What is the thought
+      behind keeping them?
+    capture:
+      - name: barrier
+        kind: list[string]
+        description: The client's stated reason for keeping a supply.
+        maps_to: barrier
+
+  - id: q-confirm-date
+    kind: ask
+    text: |
+      Last thing. The date we pencilled in: does it still stand, or has something
+      changed?
+    capture:
+      - name: quit_date
+        kind: date
+        description: Confirmed or revised quit date in ISO format.
+        maps_to: quit_date
+
+  - id: assign-plan
+    kind: assign
+    exercise_ref: ex-quit-plan-card
+
+  - id: close
+    kind: say
+    text: |
+      The plan is yours now, not mine. We speak on the day itself.

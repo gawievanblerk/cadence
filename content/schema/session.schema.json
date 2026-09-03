@@ -1,0 +1,420 @@
+{
+  "$defs": {
+    "Branch": {
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "title": "When",
+          "type": "string"
+        },
+        "goto": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Goto"
+        },
+        "end_session": {
+          "default": false,
+          "title": "End Session",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "when"
+      ],
+      "title": "Branch",
+      "type": "object"
+    },
+    "CaptureField": {
+      "additionalProperties": false,
+      "description": "A piece of structured information a step is expected to collect.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "description": "One of: string, text, integer, number, boolean, date, list[string]",
+          "title": "Kind",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Range"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options"
+        },
+        "min_items": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Items"
+        },
+        "maps_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ObservationKind this field is stored as. Defaults to `name`.",
+          "title": "Maps To"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "description"
+      ],
+      "title": "CaptureField",
+      "type": "object"
+    },
+    "Followup": {
+      "additionalProperties": false,
+      "description": "Adaptive probing, bounded.\n\n`max` is a hard stop enforced by the orchestrator, not a suggestion in a\nprompt. A model cannot talk its way past it.",
+      "properties": {
+        "max": {
+          "default": 2,
+          "title": "Max",
+          "type": "integer"
+        },
+        "when": {
+          "description": "Expression; probe again only while this is true",
+          "title": "When",
+          "type": "string"
+        },
+        "instruction": {
+          "title": "Instruction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "when",
+        "instruction"
+      ],
+      "title": "Followup",
+      "type": "object"
+    },
+    "Mandatory": {
+      "additionalProperties": false,
+      "description": "A clinical rule the session may not violate.\n\nTwo shapes, and the difference matters:\n\n`requires` is checked by the engine against recorded observations after the\nsession's steps are exhausted. It is a gate, not a prompt: if it is unmet\nthe session cannot be marked complete and the orchestrator re-opens the\nsteps that would satisfy it.\n\n`prohibition` is a constraint injected into every prompt in the session and\nadditionally checked by a post-generation guard. It is belt and braces\nbecause a prompt alone is not a control.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires"
+        },
+        "prohibition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prohibition"
+        },
+        "satisfied_by": {
+          "description": "Step ids to re-open when `requires` is unmet",
+          "items": {
+            "type": "string"
+          },
+          "title": "Satisfied By",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "description"
+      ],
+      "title": "Mandatory",
+      "type": "object"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/StepKind"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options"
+        },
+        "capture": {
+          "items": {
+            "$ref": "#/$defs/CaptureField"
+          },
+          "title": "Capture",
+          "type": "array"
+        },
+        "followup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Followup"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "knowledge_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Knowledge Ref"
+        },
+        "exercise_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exercise Ref"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Skip the step unless this is true",
+          "title": "When"
+        },
+        "branches": {
+          "items": {
+            "$ref": "#/$defs/Branch"
+          },
+          "title": "Branches",
+          "type": "array"
+        },
+        "style_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tone guidance for this step only, e.g. 'brief and warm'",
+          "title": "Style Hint"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "StepKind": {
+      "description": "The kinds of step a clinician can put in a session.\n\nAdding a kind is a code change; using one is not. The set is kept small on\npurpose \u2014 every kind is a distinct piece of orchestration behaviour, not a\npresentational variant.",
+      "enum": [
+        "say",
+        "ask",
+        "scale",
+        "choice",
+        "teach",
+        "reflect",
+        "assign",
+        "branch"
+      ],
+      "title": "StepKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "version": {
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "phase": {
+      "title": "Phase",
+      "type": "string"
+    },
+    "sequence": {
+      "description": "Position in the standard program order",
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "estimated_minutes": {
+      "default": 20,
+      "title": "Estimated Minutes",
+      "type": "integer"
+    },
+    "objectives": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Objectives",
+      "type": "array"
+    },
+    "opens_when": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Expression gating availability of this session",
+      "title": "Opens When"
+    },
+    "recall": {
+      "description": "Observation kinds this session needs from earlier sessions",
+      "items": {
+        "type": "string"
+      },
+      "title": "Recall",
+      "type": "array"
+    },
+    "mandatory": {
+      "items": {
+        "$ref": "#/$defs/Mandatory"
+      },
+      "title": "Mandatory",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/Step"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "on_complete": {
+      "additionalProperties": true,
+      "title": "On Complete",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "phase",
+    "sequence",
+    "steps"
+  ],
+  "title": "Session",
+  "type": "object"
+}

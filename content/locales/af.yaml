@@ -1,0 +1,15 @@
+# Afrikaans overlay for program version 1.1.
+#
+# Keyed by the English source string. Anything not translated here falls back to
+# English rather than failing, so a translator can work through the program
+# incrementally and ship what is done.
+
+"Today is the day. There is nothing clever to say about it. From here the work is getting through single moments, one at a time.": |
+  Vandag is die dag. Daar is niks slims om daaroor te sê nie. Van hier af gaan
+  die werk daaroor om enkele oomblikke een op 'n slag deur te kom.
+
+"Nought to ten, today: how confident are you?": "Nul tot tien, vandag: hoe seker voel jy?"
+
+"A week in. I want the plain version of how it went, including the parts that did not go the way the plan said.": |
+  'n Week later. Ek wil die eerlike weergawe hê van hoe dit gegaan het, ook die
+  dele wat nie volgens plan verloop het nie.

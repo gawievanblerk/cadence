@@ -1,0 +1,48 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "instructions": {
+      "title": "Instructions",
+      "type": "string"
+    },
+    "duration_minutes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration Minutes"
+    },
+    "attachment": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attachment"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "instructions"
+  ],
+  "title": "Exercise",
+  "type": "object"
+}
