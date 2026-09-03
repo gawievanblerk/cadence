@@ -31,7 +31,6 @@ from cadence.config import Binding, Settings
 from cadence.llm.providers.gemini import to_gemini_schema
 from cadence.llm.providers.openai import strictify
 from cadence.llm.router import ModelRouter, build_provider
-from cadence.llm.types import Capability
 from cadence.orchestration.schemas import step_schema
 
 CANDIDATES = [

@@ -20,7 +20,7 @@ import shutil
 from pathlib import Path
 
 import yaml
-from _demo_support import ROOT, backdate, build_engine, note, rule, run_session
+from _demo_support import ROOT, backdate, note, rule, run_session
 
 from cadence.config import Settings
 from cadence.content.loader import ContentError, load_bundle
