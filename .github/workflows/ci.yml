@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Validate the treatment programme
+        run: python -m cadence.cli content validate
+
+      - name: Lint
+        run: ruff check src tests scripts
+
+      - name: Test
+        run: pytest -q
+
+      # The three demos are the reference behaviour of the system and run
+      # offline, so a change that breaks one of them should fail here.
+      - name: Offline demos
+        run: |
+          python scripts/demo_journey.py > /dev/null
+          python scripts/demo_content_change.py > /dev/null
+          python scripts/demo_provider_swap.py > /dev/null
