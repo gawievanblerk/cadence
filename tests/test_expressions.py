@@ -63,6 +63,12 @@ class TestSemantics:
         context = {**CONTEXT, "observations": {**CONTEXT["observations"], "confidence": None}}
         assert evaluate("observations.confidence <= thresholds.low_confidence", context) is False
 
+    def test_days_since_a_missing_date_never_satisfies_a_comparison(self) -> None:
+        """No quit date is not the same as a quit date a long time ago."""
+        context = {**CONTEXT, "episode": {**CONTEXT["episode"], "quit_date": None}}
+        assert evaluate("days_since(episode.quit_date) >= 28", context) is False
+        assert evaluate("days_since('s02-triggers') >= 1", CONTEXT) is False
+
     def test_open_namespaces_read_missing_keys_as_null(self) -> None:
         assert evaluate("capture.not_collected_yet", CONTEXT) is None
 

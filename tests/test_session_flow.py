@@ -95,6 +95,19 @@ class TestMandatoryRules:
             assert turn.text.strip() == step.followup.text.strip()
 
 
+class TestPathwayRules:
+    def test_no_quit_date_does_not_move_a_client_onto_maintenance(self, engine) -> None:
+        """r40 counts days since the quit date. A missing date is not a date long ago."""
+        answers = {**INTAKE_ANSWERS, "q-quit-date": "I am not sure yet."}
+        enrolment = engine.enrol()
+        result = walk(engine, enrolment.episode_id, answers)
+        assert result.finished
+        assert engine.store.episode(enrolment.episode_id).quit_date is None
+        fired = {d.rule_id for d in engine.store.decisions(enrolment.client_id) if d.fired}
+        assert "r40-maintenance" not in fired
+        assert engine.store.client(enrolment.client_id).pathway == "standard"
+
+
 class TestSafety:
     def test_a_disclosure_stops_the_programme_and_escalates(self, engine) -> None:
         enrolment = engine.enrol()

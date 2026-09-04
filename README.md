@@ -20,7 +20,7 @@ deterministically.
 ```bash
 pip install -e ".[dev]"
 
-make test           # 94 tests
+make test           # 102 tests
 make demo           # a client's first month, five sessions, including a lapse
 make demo-swap      # what changes when you change vendor, and what does not
 make demo-content   # a clinician edits a threshold and the pathway changes

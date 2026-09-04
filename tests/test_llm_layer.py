@@ -198,3 +198,22 @@ class TestRouting:
         swapped = settings.with_binding("counsellor", "test-chatty:v1")
         assert swapped.bindings["counsellor"] == Binding("test-chatty", "v1")
         assert swapped.bindings["extractor"] == settings.bindings["extractor"]
+
+
+class TestScriptedExtraction:
+    @pytest.mark.parametrize(
+        "phrase, days",
+        [
+            ("In 2 weeks.", 14),
+            ("a week from now", 7),
+            ("Two weeks from today.", 14),
+            ("in 10 days", 10),
+            ("tomorrow", 1),
+        ],
+    )
+    def test_relative_quit_dates_are_understood(self, phrase: str, days: int) -> None:
+        from datetime import date, timedelta
+
+        from cadence.llm.providers.scripted import _relative_date
+
+        assert _relative_date(phrase) == date.today() + timedelta(days=days)

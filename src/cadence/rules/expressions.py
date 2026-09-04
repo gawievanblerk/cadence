@@ -137,8 +137,13 @@ def _builtins(ctx: Mapping[str, Any]) -> dict[str, Callable[..., Any]]:
     English that could not otherwise be written as a comparison.
     """
 
-    def days_since(what: Any) -> float:
-        """Days since a date, a session completion, or `quit_date`."""
+    def days_since(what: Any) -> float | None:
+        """Days since a date, a session completion, or `quit_date`.
+
+        A date that is not set yields null, not a large number, so that the
+        comparison it feeds is false. Nothing has been "a long time since" a
+        quit date the client has not chosen.
+        """
         if isinstance(what, str):
             marks = ctx.get("marks", {}) or {}
             if what in marks:
@@ -148,7 +153,7 @@ def _builtins(ctx: Mapping[str, Any]) -> dict[str, Callable[..., Any]]:
                 what = episode.get(what, what)
         d = _to_date(what)
         if d is None:
-            return float("inf")
+            return None
         return (datetime.now(timezone.utc).date() - d).days
 
     def count(value: Any) -> int:

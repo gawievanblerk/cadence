@@ -175,7 +175,8 @@ The functions: `count(x)`, `defined(x)`, `latest(x)`, `mean(x)`, `contains(list,
 `len`, `min`, `max`, `abs`, `round`, `sum`, `any`, `all`.
 
 A comparison against a missing value is always false. A rule will not fire because
-an observation is absent.
+an observation is absent. That includes `days_since` of a date that has not been
+set: a client with no quit date has not been "28 days past" it.
 
 ## Publishing
 
