@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cadence">
+<title>Cadence</title>
+<link rel="manifest" href="/app/manifest.webmanifest">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/app/icon-192.png">
+<link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <span class="brand">Cadence</span>
+    <span class="session-name" id="session-name"></span>
+    <button class="demo-toggle" id="demo-toggle" type="button" aria-pressed="false">Demo</button>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Programme progress"
+       aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
+    <span id="progress-fill"></span>
+  </div>
+  <div class="progress-label" id="progress-label">Opening your programme</div>
+</header>
+
+<main class="thread" id="thread" aria-live="polite"></main>
+
+<section class="state" id="state" hidden>
+  <h1 id="state-title"></h1>
+  <p id="state-body"></p>
+  <button class="primary" id="state-action" type="button" hidden></button>
+  <button class="quiet" id="forget" type="button">Start again as a new client</button>
+</section>
+
+<footer class="composer" id="composer">
+  <label class="sr-only" for="reply">Your answer</label>
+  <textarea id="reply" rows="1" placeholder="Type your answer" autocomplete="off" enterkeyhint="send"></textarea>
+  <button class="primary" id="send" type="button">Send</button>
+</footer>
+
+<script>
+  // The offline worker caches this shell so the app opens without a signal.
+  // Registered here rather than in app.js so the shell is self-describing.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/app/sw.js").catch(function () { /* still works online */ });
+  }
+</script>
+<script src="/app/app.js"></script>
+</body>
+</html>

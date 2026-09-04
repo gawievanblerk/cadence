@@ -121,6 +121,7 @@ Open these in a browser.
 
 | Page | What to check |
 |---|---|
+| `/app/` | On a phone. Work through the intake, then use the browser's Add to Home Screen. Reopen it and it carries on |
 | `/ui/` | Enrol a test client, work through the intake, watch the rules fire |
 | `/ui/admin` | The caseload shows the seeded clients and their flags |
 | `/ui/author` | Edit a threshold, save, and see the validator accept or refuse it |
