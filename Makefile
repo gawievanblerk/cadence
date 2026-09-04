@@ -1,4 +1,4 @@
-.PHONY: install test demo demo-swap demo-content api walkthrough validate lint clean
+.PHONY: install test demo demo-swap demo-content api walkthrough seed-demo docker-up docker-down validate lint clean
 
 install:
 	pip install -e ".[dev]"
@@ -27,6 +27,19 @@ api:
 # drift from what the system does.
 walkthrough:
 	python scripts/record_walkthrough.py
+
+# Three scripted clients into whatever CADENCE_DATABASE_URL points at, so the
+# review screen has a caseload. --reset drops every table first. Demo only.
+seed-demo:
+	python scripts/seed_demo.py --reset
+
+# The same stack the test server runs, on this machine: Postgres plus the app
+# on http://127.0.0.1:8000. docker-compose.prod.yml adds Caddy for HTTPS.
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
 
 validate:
 	python -m cadence.cli content validate

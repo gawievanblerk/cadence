@@ -1,0 +1,73 @@
+# The test server: Postgres, the app, and Caddy in front for HTTPS.
+#
+# Runs from /opt/cadence on one small VM. The deploy job in
+# .github/workflows/ci.yml copies the code here and runs
+#
+#   docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+#
+# Secrets come from /opt/cadence/.env, which is never in git and never copied
+# by the deploy. See docs/DEPLOY.md for what it must contain.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: cadence
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cadence:
+    build: .
+    restart: unless-stopped
+    # Reachable from the VM itself only, for curl and debugging. The public
+    # door is Caddy.
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      CADENCE_DATABASE_URL: postgresql+psycopg://cadence:${DB_PASSWORD}@postgres:5432/cadence
+      CADENCE_CONTENT_PATH: /app/content
+      CADENCE_CONTENT_VERSION: ${CADENCE_CONTENT_VERSION:-@latest}
+      CADENCE_ENCRYPTION_KEY: ${CADENCE_ENCRYPTION_KEY:?set CADENCE_ENCRYPTION_KEY in .env}
+      CADENCE_REDACT_EGRESS: "true"
+      CADENCE_ROLE_COUNSELLOR: ${CADENCE_ROLE_COUNSELLOR:-scripted:demo}
+      CADENCE_ROLE_EXTRACTOR: ${CADENCE_ROLE_EXTRACTOR:-scripted:demo}
+      CADENCE_ROLE_SUMMARISER: ${CADENCE_ROLE_SUMMARISER:-scripted:demo}
+      CADENCE_ROLE_EMBEDDER: ${CADENCE_ROLE_EMBEDDER:-hashing:local-384}
+      CADENCE_ROLE_COUNSELLOR_FALLBACK: ${CADENCE_ROLE_COUNSELLOR_FALLBACK:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADENCE_DOMAIN: ${CADENCE_DOMAIN:?set CADENCE_DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      cadence:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
