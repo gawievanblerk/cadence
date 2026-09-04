@@ -19,6 +19,11 @@ same shape.
 Each running installation of Cadence serves one programme folder at a time.
 A second programme is a second folder, and a second installation pointed at it.
 
+The worked example in this guide is a sleep programme. That is deliberate.
+The nicotine programme is the one you will copy from, because it exists and
+is complete, but building something other than nicotine is the clearest
+proof that the system is not about nicotine.
+
 ## What a programme is made of
 
 ```
