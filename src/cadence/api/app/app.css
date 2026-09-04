@@ -1,0 +1,185 @@
+/* The phone client.
+
+   Brief. Digital health, one client on one phone, possibly tired, possibly
+   older. The page has one job: answer the counsellor. Mood: calm, plain,
+   steady. Motion: micro only. Layout: a single conversation column between
+   a fixed progress strip and a fixed reply box.
+
+   Palette, shared with the other screens so it is one family:
+     Paper #ffffff   Sand #f6f4ef (warm, brand-tinted wash)
+     Ink #1c1c1c     Ink soft #5a5a5a     Line #e3ded3
+     Moss #2f5d50    the one hue: progress, send, focus, nothing else
+     Clay #9a3b26    only the safety notice, always with a label
+
+   Type: Atkinson Hyperlegible, bundled. Chosen because it was designed for
+   legibility, and this is read on a small screen by people who are not at
+   their best. Display step for the session name, body for the conversation,
+   caption for the progress line.
+
+   Signature element: the moss progress strip, a flat hard-edged block whose
+   filled part ends on a diagonal. The only bold thing on the screen. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-weight: 400;
+  font-display: swap;
+  src: url("/app/atkinson-hyperlegible-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-weight: 700;
+  font-display: swap;
+  src: url("/app/atkinson-hyperlegible-700.woff2") format("woff2");
+}
+
+:root {
+  --paper: #ffffff;
+  --sand: #f6f4ef;
+  --ink: #1c1c1c;
+  --ink-soft: #5a5a5a;
+  --ink-faint: #8b8b8b;
+  --line: #e3ded3;
+  --moss: #2f5d50;
+  --moss-deep: #244a40;
+  --moss-soft: #e6efec;
+  --clay: #9a3b26;
+  --clay-soft: #fbeeea;
+  --top-h: 76px;
+  --ease: 150ms ease-out;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: "Atkinson Hyperlegible", "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--sand);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* -- top strip ------------------------------------------------------------ */
+
+.top {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 8px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.top-row { display: flex; align-items: baseline; gap: 10px; }
+.brand { font-weight: 700; letter-spacing: -0.02em; font-size: 15px; color: var(--moss); }
+.session-name {
+  flex: 1; font-size: 15px; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.demo-toggle {
+  font: inherit; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-faint); background: none; border: 1px solid var(--line);
+  border-radius: 3px; padding: 2px 8px; cursor: pointer;
+}
+.demo-toggle[aria-pressed="true"] { color: var(--moss); border-color: var(--moss); }
+
+.progress {
+  margin-top: 8px; height: 8px; background: var(--moss-soft); overflow: hidden;
+}
+.progress span {
+  display: block; height: 100%; width: 0;
+  background: var(--moss);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  transition: width var(--ease);
+}
+.progress-label {
+  margin-top: 6px; font-size: 13px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- conversation --------------------------------------------------------- */
+
+.thread {
+  padding: calc(var(--top-h) + env(safe-area-inset-top) + 16px) 16px 120px;
+  max-width: 640px; margin: 0 auto;
+}
+.turn { margin: 0 0 14px; animation: rise var(--ease) both; }
+.turn p { margin: 0 0 8px; }
+.turn p:last-child { margin-bottom: 0; }
+.turn .who {
+  font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 3px;
+}
+.turn.counsellor { padding-left: 12px; border-left: 3px solid var(--moss); }
+.turn.client {
+  margin-left: 15%; padding: 10px 14px;
+  background: var(--paper); border: 1px solid var(--line);
+}
+.turn.client .who { color: var(--ink-soft); }
+
+.notice {
+  margin: 0 0 14px; padding: 12px 14px;
+  background: var(--clay-soft); border-left: 3px solid var(--clay);
+  animation: rise var(--ease) both;
+}
+.notice .who { color: var(--clay); font-weight: 700; }
+
+.engine {
+  display: none; margin: -6px 0 12px 15px;
+  font-size: 13px; color: var(--ink-faint);
+  font-family: ui-monospace, Menlo, monospace;
+}
+body.demo .engine { display: block; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .turn, .notice { animation: none; }
+  .progress span { transition: none; }
+}
+
+/* -- between sessions ----------------------------------------------------- */
+
+.state {
+  max-width: 640px; margin: 0 auto; padding: 8px 16px calc(24px + env(safe-area-inset-bottom));
+}
+.state h1 { font-size: 24px; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 8px; }
+.state p { margin: 0 0 18px; color: var(--ink-soft); }
+.state .primary { width: 100%; margin-bottom: 10px; }
+
+/* -- reply box ------------------------------------------------------------ */
+
+.composer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 2;
+  display: flex; gap: 10px; align-items: flex-end;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--paper); border-top: 1px solid var(--line);
+}
+.composer[hidden] { display: none; }
+textarea {
+  flex: 1; font: inherit; line-height: 1.4; resize: none;
+  padding: 12px 14px; min-height: 48px; max-height: 132px;
+  color: var(--ink); background: var(--sand);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+textarea:disabled { color: var(--ink-faint); }
+
+button.primary {
+  font: inherit; font-weight: 700;
+  min-height: 48px; padding: 0 20px;
+  color: var(--paper); background: var(--moss);
+  border: 0; border-radius: 4px; cursor: pointer;
+  transition: background var(--ease);
+}
+button.primary:active { background: var(--moss-deep); }
+button.primary:disabled { background: var(--line); color: var(--ink-faint); cursor: default; }
+button.quiet {
+  font: inherit; font-size: 15px; width: 100%; min-height: 44px;
+  color: var(--ink-soft); background: none; border: 1px solid var(--line);
+  border-radius: 4px; cursor: pointer;
+}
+
+:focus-visible { outline: 3px solid var(--moss); outline-offset: 2px; }

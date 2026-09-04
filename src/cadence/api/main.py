@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from cadence.api.authoring import ContentWorkspace
 from cadence.api.schemas import (
@@ -142,6 +142,42 @@ def ui(page: str = "client.html") -> FileResponse:
     if not path.exists():
         raise HTTPException(404, "no such page")
     return FileResponse(path)
+
+
+# ---------------------------------------------------------------------------
+# The installable phone client. A static shell under /app/ that a browser can
+# add to the home screen: a manifest, an offline worker for the shell itself,
+# and one page that talks to the same API as everything above. Static on
+# purpose: there is nothing to build, and the API is the only thing it can do.
+# ---------------------------------------------------------------------------
+
+APP_DIR = Path(__file__).parent / "app"
+APP_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".webmanifest": "application/manifest+json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".woff2": "font/woff2",
+}
+
+
+@app.get("/app", include_in_schema=False)
+def app_redirect() -> RedirectResponse:
+    return RedirectResponse("/app/", status_code=308)
+
+
+@app.get("/app/", include_in_schema=False)
+@app.get("/app/{asset}", include_in_schema=False)
+def app_shell(asset: str = "index.html") -> FileResponse:
+    name = Path(asset).name
+    path = APP_DIR / name
+    if name != asset or path.suffix not in APP_TYPES or not path.is_file():
+        raise HTTPException(404, "no such file")
+    # The worker caches the shell; the browser itself must always revalidate,
+    # or a deploy would not reach a phone that already has the app open.
+    return FileResponse(path, media_type=APP_TYPES[path.suffix], headers={"Cache-Control": "no-cache"})
 
 
 # ---------------------------------------------------------------------------

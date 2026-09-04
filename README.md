@@ -38,6 +38,7 @@ same API any other client would:
 
 | | |
 |---|---|
+| `/app/` | the client's phone app: one conversation, installable from the browser, carries on where it left off |
 | `/ui/` | the client's counselling session, with progress and the rules that fired |
 | `/ui/author` | the clinical team's authoring screen: edit a session or a threshold, save, and watch the validator refuse a broken rule and roll the file back |
 | `/ui/admin` | caseload, the decision log including rules that did not fire, and the register of what was sent to which model provider |

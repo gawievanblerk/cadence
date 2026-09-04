@@ -177,6 +177,10 @@ Flags are set by rules and appear in the caseload. They are your to do list.
 
 The quickest way to understand the programme is to be the client.
 
+- On a phone, open `/app/`. This is what a client holds in their hand: one
+  conversation, a progress line, and a clear message between sessions. Use the
+  browser's Add to Home Screen and it opens like an app. The Demo switch at
+  the top shows what the engine did after each answer.
 - In the browser, open `/ui/`, enrol a test client, and work through the intake.
   The panel on the right shows progress, the programme, and every rule that
   fired as you go.
