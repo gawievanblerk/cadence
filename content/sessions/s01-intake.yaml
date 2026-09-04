@@ -66,6 +66,8 @@ steps:
     followup:
       max: 2
       when: "not defined(capture.daily_quantity)"
+      text: |
+        What would be your best estimate for an ordinary day? A rough range is fine.
       instruction: >
         The client has not given a number. Ask once, plainly, for their best
         estimate of an ordinary day. Accept a range. Do not press a third time.
@@ -96,6 +98,8 @@ steps:
     followup:
       max: 2
       when: "count(capture.goal) < 2"
+      text: |
+        Is there anything else behind the decision?
       instruction: >
         Ask whether there is anything else behind the decision. Do not offer
         examples; suggested reasons are not the client's reasons.

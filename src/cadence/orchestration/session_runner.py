@@ -35,6 +35,10 @@ from cadence.rules.expressions import ExpressionError, truthy
 
 log = logging.getLogger("cadence.orchestration")
 
+# What a client is asked when a follow-up has no authored `text`. Neutral on
+# purpose: it must be safe for every step in every programme.
+GENERIC_FOLLOWUP = "Is there anything else you would like to add to that?"
+
 MAX_REOPEN_PASSES = 2
 
 
@@ -492,20 +496,29 @@ class SessionRunner:
             client_id=run.client_id,
         )
         instruction = step.followup.instruction if step.followup else ""
+        # The instruction is written for the model. What the client may see, and
+        # what they get if generation fails, is the authored question.
+        authored = (step.followup.text if step.followup else None) or GENERIC_FOLLOWUP
+        task = (
+            "The client has answered, but not fully. Follow up once, with a single "
+            f"question, according to this instruction:\n\n{instruction}"
+        )
+        if step.followup and step.followup.text:
+            task += (
+                "\n\nThe clinical team's own wording for this follow-up is below. Keep its "
+                f"meaning and add nothing they did not write:\n\n{step.followup.text}"
+            )
         prompt = render(
             "counsellor.j2",
             context=context.render(),
-            task=(
-                "The client has answered, but not fully. Follow up once, with a single "
-                f"question, according to this instruction:\n\n{instruction}"
-            ),
+            task=task,
             style_hint=step.style_hint,
         )
         text = self._generate(
             run=run,
             session=session,
             prompt=prompt,
-            authored=instruction,
+            authored=authored,
             step=step,
             context_recall="",
         )

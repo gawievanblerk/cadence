@@ -75,6 +75,25 @@ class TestMandatoryRules:
         asked = [t.step_id for t in engine.store.turns(run.id) if t.role == "counsellor"]
         assert asked.count("q-current-use") <= 3  # the question, plus at most two follow-ups
 
+    def test_a_follow_up_shows_the_client_a_question_and_never_the_model_instruction(
+        self, engine
+    ) -> None:
+        """`followup.instruction` is written for the model. The client sees `followup.text`."""
+        answers = {**INTAKE_ANSWERS, "q-reasons": "I have tried before but nothing worked."}
+        enrolment = engine.enrol()
+        walk(engine, enrolment.episode_id, answers)
+        step = next(s for s in engine.bundle().session("s01-intake").steps if s.id == "q-reasons")
+        run = engine.store.runs_for_episode(enrolment.episode_id)[0]
+        followups = [
+            t
+            for t in engine.store.turns(run.id)
+            if t.role == "counsellor" and (t.meta or {}).get("followup")
+        ]
+        assert followups, "a single reason should have triggered a follow-up"
+        for turn in followups:
+            assert turn.text.strip() != step.followup.instruction.strip()
+            assert turn.text.strip() == step.followup.text.strip()
+
 
 class TestSafety:
     def test_a_disclosure_stops_the_programme_and_escalates(self, engine) -> None:

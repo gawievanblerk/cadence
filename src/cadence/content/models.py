@@ -63,7 +63,16 @@ class Followup(Strict):
 
     max: int = 2
     when: str = Field(description="Expression; probe again only while this is true")
-    instruction: str
+    instruction: str = Field(
+        description="Written for the model: how to probe. The client never sees this."
+    )
+    text: str | None = Field(
+        default=None,
+        description=(
+            "The follow-up question in the clinical team's own words. This is what the "
+            "client gets if generation fails or is unavailable; the instruction is not."
+        ),
+    )
 
 
 class Step(Strict):
