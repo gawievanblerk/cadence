@@ -23,10 +23,10 @@ A second programme is a second folder, and a second installation pointed at it.
 
 ```
 my-programme/
-  program.yaml          who the counsellor is, what it must never do, safety, versions
+  program.yaml          persona, prohibitions, safety, versions
   sessions/             one file per session
   rules/pathways.yaml   thresholds and routing rules
-  knowledge/            clinical material the counsellor may teach from
+  knowledge/            material the counsellor may teach from
   exercises/            homework between sessions
   locales/              translations, optional
 ```
@@ -68,13 +68,14 @@ locales: [en]
 default_locale: en
 
 persona: |
-  You are a sleep counsellor working through a structured programme. You are
-  calm and practical. You treat the client as the expert on their own life and
-  yourself as the expert on the method. You ask one question at a time.
+  You are a sleep counsellor working through a structured
+  programme. You are calm and practical. You treat the client as
+  the expert on their own life and yourself as the expert on the
+  method. You ask one question at a time.
 
 global_prohibitions:
-  - Never recommend, prescribe or adjust any medication or supplement. Refer
-    the client to their prescriber or pharmacist.
+  - Never recommend, prescribe or adjust any medication or
+    supplement. Refer the client to their prescriber or pharmacist.
   - Never diagnose a sleep disorder or any other condition.
   - Do not introduce techniques that are not part of this programme.
 
@@ -84,10 +85,12 @@ safety:
     - suicidal_ideation
     - acute_medical
   escalation_message: |
-    I want to stop the programme material here, because what you have
-    described matters more than the session plan. Please contact your doctor
-    or a crisis line today. I will let your counsellor know we spoke.
-  contact_line: "Your clinic will contact you within one working day."
+    I want to stop the programme material here, because what you
+    have described matters more than the session plan. Please
+    contact your doctor or a crisis line today. I will let your
+    counsellor know we spoke.
+  contact_line: >-
+    Your clinic will be in touch within one working day.
 
 versions:
   - version: "0.1"
@@ -118,33 +121,38 @@ estimated_minutes: 20
 
 objectives:
   - Record the client's current sleep pattern in their own words
-  - Record at least two reasons of their own for wanting to change it
+  - Record at least two of the client's own reasons for change
   - Take a baseline confidence rating
 
 recall: []
 
 mandatory:
   - id: m01-own-reasons
-    description: At least two reasons in the client's own words before closing.
+    description: At least two reasons, in the client's own words.
     requires: "count(history.goal) >= 2"
     satisfied_by: [q-reasons]
+```
 
+Then the steps, in the same file:
+
+```yaml
 steps:
   - id: welcome
     kind: say
     text: |
-      Over the next few weeks we will work on your sleep one step at a time.
-      Today I only want to understand where you are starting from.
+      Over the next few weeks we will work on your sleep one step
+      at a time. Today I only want to understand where you are
+      starting from.
 
   - id: q-pattern
     kind: ask
     text: |
-      Tell me about an ordinary night at the moment. When you go to bed, how
-      long it takes to fall asleep, and when you wake.
+      Tell me about an ordinary night at the moment. When you go to
+      bed, how long it takes to fall asleep, and when you wake.
     capture:
       - name: sleep_pattern
         kind: text
-        description: The client's current sleep pattern, as described.
+        description: The current sleep pattern, as described.
         maps_to: free_note
 
   - id: q-reasons
@@ -155,8 +163,8 @@ steps:
       - name: goal
         kind: list[string]
         description: >
-          The client's own reasons, one per item, in their words rather than
-          clinical language.
+          The client's own reasons, one per item, in their words
+          rather than clinical language.
         min_items: 1
         maps_to: goal
     followup:
@@ -165,14 +173,14 @@ steps:
       text: |
         Is there anything else behind it?
       instruction: >
-        Ask whether there is anything else behind the decision. Do not offer
-        examples.
+        Ask whether there is anything else behind the decision.
+        Do not offer examples.
 
   - id: rate-confidence
     kind: scale
     text: |
-      On a scale of nought to ten, how confident are you that you can change
-      your sleep routine and keep the change?
+      On a scale of nought to ten, how confident are you that you
+      can change your sleep routine and keep the change?
     capture:
       - name: confidence
         kind: integer
@@ -187,8 +195,8 @@ steps:
   - id: close
     kind: say
     text: |
-      That is everything for today. Keep the diary, and next time we will
-      build the evening routine from what it shows.
+      That is everything for today. Keep the diary, and next time
+      we will build the evening routine from what it shows.
 ```
 
 Things to notice.
@@ -218,7 +226,9 @@ estimated_minutes: 25
 objectives:
   - Agree a fixed wind down routine the client can actually do
 
-opens_when: "'s01-sleep-baseline' in episode.sessions_completed and days_since('s01-sleep-baseline') >= 3"
+opens_when: >-
+  's01-sleep-baseline' in episode.sessions_completed
+  and days_since('s01-sleep-baseline') >= 3
 
 recall:
   - goal
@@ -228,7 +238,8 @@ steps:
   - id: reflect-diary
     kind: reflect
     text: |
-      Read back the reasons recorded last time and ask what the diary showed.
+      Read back the reasons recorded last time and ask what the
+      diary showed.
 
   - id: teach-wind-down
     kind: teach
@@ -237,8 +248,8 @@ steps:
   - id: q-routine
     kind: ask
     text: |
-      Which one or two of those could you do every evening this week, even
-      on a bad day?
+      Which one or two of those could you do every evening this
+      week, even on a bad day?
     capture:
       - name: technique_used
         kind: list[string]
@@ -253,7 +264,7 @@ steps:
     capture:
       - name: commitment
         kind: string
-        description: The stated commitment and the date it runs from.
+        description: The commitment and the date it runs from.
         maps_to: commitment
 
   - id: close
@@ -283,21 +294,22 @@ recall:
 
 mandatory:
   - id: m90-no-blame
-    description: A hard week is information about the plan, not about the client.
+    description: >
+      A hard week is information about the plan, not the client.
     prohibition: >
-      Do not use the words failure or setback. Do not ask why the client did
-      not manage it.
+      Do not use the words failure or setback. Do not ask why the
+      client did not manage it.
 
 steps:
   - id: q-what-got-in-the-way
     kind: ask
     text: |
-      Take me through one of the evenings it did not happen. What was going
-      on, and where did the routine drop out?
+      Take me through one of the evenings it did not happen. What
+      was going on, and where did the routine drop out?
     capture:
       - name: barrier
         kind: list[string]
-        description: What made the routine unavailable in the moment.
+        description: What got in the way that evening.
         maps_to: barrier
 
   - id: q-adjust
@@ -327,10 +339,11 @@ title: Winding down
 audience: client
 tags: [technique, core]
 body: |
-  The hour before bed tells the body what is coming. The same three or four
-  things, in the same order, every night, work better than anything clever.
-  Dim the lights. Put screens away. Do something quiet and boring. Go to bed
-  at the same time whether or not you feel sleepy.
+  The hour before bed tells the body what is coming. The same
+  three or four things, in the same order, every night, work
+  better than anything clever. Dim the lights. Put screens away.
+  Do something quiet and boring. Go to bed at the same time
+  whether or not you feel sleepy.
 ```
 
 An exercise is homework. It is given to the client as written.
@@ -340,9 +353,10 @@ id: ex-sleep-diary
 title: Sleep diary
 duration_minutes: 3
 instructions: |
-  Each morning, before anything else, write down three things: what time you
-  went to bed, roughly how long it took to fall asleep, and what time you got
-  up. Do not try to change anything yet. The diary is a measurement.
+  Each morning, before anything else, write down three things:
+  what time you went to bed, roughly how long it took to fall
+  asleep, and what time you got up. Do not try to change anything
+  yet. The diary is a measurement.
 ```
 
 ### 5. Write the rules
@@ -357,7 +371,7 @@ thresholds:
 
 rules:
   - id: r00-safety-escalation
-    description: Any safety concern stops delivery and asks for a human.
+    description: A safety concern stops delivery and calls a human.
     priority: 0
     once: false
     when: "defined(observations.safety_concern)"
@@ -368,9 +382,13 @@ rules:
         program_paused: true
 
   - id: r10-bad-week
-    description: A recorded barrier after the routine was agreed inserts the hard week session.
+    description: >
+      A barrier recorded after the routine was agreed inserts the
+      hard week session.
     priority: 10
-    when: "defined(observations.barrier) and defined(observations.commitment)"
+    when: >-
+      defined(observations.barrier)
+      and defined(observations.commitment)
     then:
       insert_session: s90-bad-week
       set_flag:
@@ -388,7 +406,9 @@ rules:
   - id: r30-stalled
     description: No completed session for two weeks flags outreach.
     priority: 30
-    when: "days_since(episode.last_session_at) >= thresholds.stalled_days"
+    when: >-
+      days_since(episode.last_session_at)
+      >= thresholds.stalled_days
     then:
       notify: [care_coordinator]
       set_flag:
@@ -425,9 +445,9 @@ Point a local installation at the folder and be the client.
 
 ```bash
 export CADENCE_CONTENT_PATH=./my-programme
-export CADENCE_CONTENT_VERSION=0.1    # needed while the version is a draft
-cadence chat                          # a session in the terminal
-make api                              # then open /ui/ in a browser
+export CADENCE_CONTENT_VERSION=0.1   # while the version is a draft
+cadence chat                         # a session in the terminal
+make api                             # then open /ui/ in a browser
 ```
 
 No AI provider is needed for this. The offline counsellor delivers your text
