@@ -59,6 +59,9 @@ steps:
     followup:
       max: 3
       when: "count(capture.trigger_situation) < 3"
+      text: |
+        Can you think of one more situation? Tell me about the last time it actually
+        happened.
       instruction: >
         Ask for one more situation. If a situation given is vague, ask for the
         last concrete instance of it instead of accepting the category.

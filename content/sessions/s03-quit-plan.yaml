@@ -57,6 +57,9 @@ steps:
     followup:
       max: 3
       when: "count(capture.technique_used) < count(history.trigger_situation)"
+      text: |
+        Some of the situations on your list do not have a response yet. What will you
+        do in those?
       instruction: >
         Name the situations that still have no response attached, and ask about
         those specifically. Do not supply the answer.

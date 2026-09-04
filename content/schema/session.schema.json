@@ -132,8 +132,22 @@
           "type": "string"
         },
         "instruction": {
+          "description": "Written for the model: how to probe. The client never sees this.",
           "title": "Instruction",
           "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The follow-up question in the clinical team's own words. This is what the client gets if generation fails or is unavailable; the instruction is not.",
+          "title": "Text"
         }
       },
       "required": [
@@ -316,7 +330,7 @@
       "type": "object"
     },
     "StepKind": {
-      "description": "The kinds of step a clinician can put in a session.\n\nAdding a kind is a code change; using one is not. The set is kept small on\npurpose \u2014 every kind is a distinct piece of orchestration behaviour, not a\npresentational variant.",
+      "description": "The kinds of step a clinician can put in a session.\n\nAdding a kind is a code change; using one is not. The set is kept small on\npurpose - every kind is a distinct piece of orchestration behaviour, not a\npresentational variant.",
       "enum": [
         "say",
         "ask",

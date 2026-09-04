@@ -191,11 +191,17 @@ def _word_number(text: str) -> float | None:
     return None
 
 
+_RELATIVE = re.compile(r"\b(\d+|a|an|one|two|three|four|five|six)\s+(day|week)s?\b", re.IGNORECASE)
+_SMALL = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+
+
 def _relative_date(text: str) -> date | None:
-    match = re.search(r"in\s+(\d+)\s+(day|week)s?", text, re.I)
+    """'in 2 weeks', 'a week from now', 'ten days', 'tomorrow', 'next week'."""
+    match = _RELATIVE.search(text)
     if match:
-        n = int(match.group(1))
-        return date.today() + timedelta(days=n * (7 if match.group(2).lower() == "week" else 1))
+        raw, unit = match.group(1).lower(), match.group(2).lower()
+        n = int(raw) if raw.isdigit() else _SMALL[raw]
+        return date.today() + timedelta(days=n * (7 if unit == "week" else 1))
     if re.search(r"\btomorrow\b", text, re.I):
         return date.today() + timedelta(days=1)
     if re.search(r"\bnext (monday|week)\b", text, re.I):

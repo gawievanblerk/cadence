@@ -95,7 +95,11 @@ the field name is not already one of the recognised kinds; `cadence content
 validate` lists them if you get one wrong.
 
 `followup` is adaptive probing with a hard ceiling. `max` is enforced by the
-engine, not requested in a prompt, so it cannot be exceeded.
+engine, not requested in a prompt, so it cannot be exceeded. `instruction` is
+written for the model and the client never sees it. `text` is the follow-up
+question in your own words: the counsellor keeps to its meaning, and it is what
+the client gets verbatim if generation fails. Always write one; without it the
+engine asks a neutral "anything else?" instead.
 
 `style_hint` adjusts the tone of one step: "two sentences, no more", "level, not
 celebratory".
@@ -171,7 +175,8 @@ The functions: `count(x)`, `defined(x)`, `latest(x)`, `mean(x)`, `contains(list,
 `len`, `min`, `max`, `abs`, `round`, `sum`, `any`, `all`.
 
 A comparison against a missing value is always false. A rule will not fire because
-an observation is absent.
+an observation is absent. That includes `days_since` of a date that has not been
+set: a client with no quit date has not been "28 days past" it.
 
 ## Publishing
 
