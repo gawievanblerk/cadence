@@ -75,7 +75,7 @@ src/cadence/
 
 tests/              behaviour, not mocks: the assertions are about decisions
 scripts/            the three demos
-docs/               architecture, authoring guide, privacy notes
+docs/               architecture, authoring guide, counsellor manual, building a programme
 ```
 
 ## The four claims, and where to check them
