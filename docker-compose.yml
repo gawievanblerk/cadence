@@ -1,0 +1,50 @@
+# The stack on a laptop: Postgres plus the app, on http://127.0.0.1:8000.
+# This is the same shape the test server runs; docker-compose.prod.yml adds
+# Caddy for HTTPS and takes its secrets from .env rather than defaults.
+#
+#   make docker-up        # build and start
+#   make seed-demo        # needs CADENCE_DATABASE_URL below, or run it inside:
+#   docker compose exec cadence python scripts/seed_demo.py --reset
+#   make docker-down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cadence}
+      POSTGRES_DB: cadence
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cadence:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      CADENCE_DATABASE_URL: postgresql+psycopg://cadence:${DB_PASSWORD:-cadence}@postgres:5432/cadence
+      CADENCE_CONTENT_PATH: /app/content
+      CADENCE_CONTENT_VERSION: ${CADENCE_CONTENT_VERSION:-@latest}
+      CADENCE_ENCRYPTION_KEY: ${CADENCE_ENCRYPTION_KEY:-}
+      CADENCE_ROLE_COUNSELLOR: ${CADENCE_ROLE_COUNSELLOR:-scripted:demo}
+      CADENCE_ROLE_EXTRACTOR: ${CADENCE_ROLE_EXTRACTOR:-scripted:demo}
+      CADENCE_ROLE_SUMMARISER: ${CADENCE_ROLE_SUMMARISER:-scripted:demo}
+      CADENCE_ROLE_EMBEDDER: ${CADENCE_ROLE_EMBEDDER:-hashing:local-384}
+      CADENCE_ROLE_COUNSELLOR_FALLBACK: ${CADENCE_ROLE_COUNSELLOR_FALLBACK:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

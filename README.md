@@ -26,7 +26,12 @@ make demo-swap      # what changes when you change vendor, and what does not
 make demo-content   # a clinician edits a threshold and the pathway changes
 make api            # FastAPI on :8000
 make walkthrough    # records a captioned video of the three interfaces
+make docker-up      # the same stack the test server runs: Postgres plus the app
+make seed-demo      # three scripted clients, so the review screen has a caseload
 ```
+
+To put it on a server, see `docs/DEPLOY.md`: one small VM, three containers,
+and a deploy that runs from GitHub on every merge to `main`.
 
 With the server up there are three reference interfaces, all of them calling the
 same API any other client would:

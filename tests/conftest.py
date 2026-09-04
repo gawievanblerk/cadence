@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -7,17 +8,26 @@ import pytest
 from cadence.config import Settings
 from cadence.content.registry import ContentRegistry
 from cadence.db.engine import Database
+from cadence.db.models import Base
 from cadence.orchestration import TreatmentEngine
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 
+# By default every test gets its own SQLite file. Set this to a Postgres URL
+# to run the same suite against a real server; each test then starts from an
+# empty schema, which is what the per-test file gave it for free.
+TEST_DATABASE_URL = os.environ.get("CADENCE_TEST_DATABASE_URL")
+
 
 @pytest.fixture()
 def settings(tmp_path: Path) -> Settings:
+    url = TEST_DATABASE_URL or f"sqlite:///{tmp_path / 'test.db'}"
+    if TEST_DATABASE_URL:
+        Base.metadata.drop_all(Database(url).engine)
     return Settings.from_env(
         {
-            "CADENCE_DATABASE_URL": f"sqlite:///{tmp_path / 'test.db'}",
+            "CADENCE_DATABASE_URL": url,
             "CADENCE_CONTENT_PATH": str(CONTENT),
         }
     )

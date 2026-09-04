@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   check:
@@ -41,3 +42,208 @@ jobs:
           python scripts/demo_journey.py > /dev/null
           python scripts/demo_content_change.py > /dev/null
           python scripts/demo_provider_swap.py > /dev/null
+
+  # The suite runs on SQLite by default. The server runs on Postgres. This job
+  # is the proof that nothing in the storage layer quietly depends on SQLite.
+  postgres:
+    name: Tests on Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cadence
+          POSTGRES_PASSWORD: cadence
+          POSTGRES_DB: cadence
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cadence"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev,postgres]"
+
+      - name: Test against Postgres
+        env:
+          CADENCE_TEST_DATABASE_URL: postgresql+psycopg://cadence:cadence@localhost:5432/cadence
+        run: pytest -q
+
+      - name: Seed the demo caseload into Postgres
+        env:
+          CADENCE_DATABASE_URL: postgresql+psycopg://cadence:cadence@localhost:5432/cadence
+        run: python scripts/seed_demo.py --reset
+
+  # Build the image the server will run and prove it boots and answers.
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t cadence:ci .
+
+      - name: Boot and check health
+        run: |
+          docker run -d --name cadence-ci -p 8000:8000 cadence:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/healthz > /dev/null 2>&1; then
+              echo "healthy after ${i}s"
+              curl -sS http://127.0.0.1:8000/healthz
+              echo
+              docker rm -f cadence-ci > /dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::container did not become healthy"
+          docker logs cadence-ci
+          docker rm -f cadence-ci > /dev/null
+          exit 1
+
+  # Deploy to the test server. Runs only on main, only after every check above
+  # passed, and only once the repository variable DEPLOY_ENABLED is "true", so
+  # the pipeline stays green until the VM and its secrets exist.
+  # See docs/DEPLOY.md for the secrets and variables it needs.
+  deploy:
+    name: Deploy to test server
+    needs: [check, postgres, image]
+    runs-on: ubuntu-latest
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      vars.DEPLOY_ENABLED == 'true'
+    concurrency:
+      group: deploy-test
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Validate DEPLOY_PATH
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "::error::DEPLOY_PATH secret is empty"
+            exit 1
+          fi
+          case "$DEPLOY_PATH" in
+            /|/root|/home|/etc|/var|/usr|/bin|/sbin|/tmp|/opt)
+              echo "::error::DEPLOY_PATH='$DEPLOY_PATH' is too broad to use with rsync --delete"
+              exit 1
+              ;;
+          esac
+          case "$DEPLOY_PATH" in
+            /*) ;;
+            *)
+              echo "::error::DEPLOY_PATH must be absolute (got '$DEPLOY_PATH')"
+              exit 1
+              ;;
+          esac
+          echo "DEPLOY_PATH validated: $DEPLOY_PATH"
+
+      # Best effort on purpose: the first deploy has no database to snapshot.
+      - name: Snapshot Postgres before deploy
+        run: |
+          SHA_SHORT="${GITHUB_SHA:0:7}"
+          ssh -i ~/.ssh/deploy_key \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             mkdir -p ${{ secrets.DEPLOY_PATH }}/backups; \
+             cd ${{ secrets.DEPLOY_PATH }}; \
+             if [ -f docker-compose.prod.yml ] && docker compose -f docker-compose.prod.yml ps --status=running --services 2>/dev/null | grep -qx postgres; then \
+               TS=\$(date -u +%Y%m%dT%H%M%SZ); \
+               SNAP=backups/pre-deploy-\${TS}-${SHA_SHORT}.sql.gz; \
+               docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U cadence --clean --if-exists cadence | gzip > \$SNAP; \
+               ls -lh \$SNAP; \
+             else \
+               echo 'No running database yet; nothing to snapshot.'; \
+             fi"
+
+      - name: Rsync source to the server
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.venv/' \
+            --exclude='var/' \
+            --exclude='backups/' \
+            --exclude='__pycache__/' \
+            --exclude='.pytest_cache/' \
+            --exclude='.ruff_cache/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='.idea/' \
+            --exclude='.claude/' \
+            --exclude='.DS_Store' \
+            --exclude='*.pdf' \
+            --exclude='screens/' \
+            --exclude='tests/' \
+            --exclude='docs/' \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+      - name: Rebuild the stack
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "set -e; \
+             cd ${{ secrets.DEPLOY_PATH }}; \
+             echo '${{ github.sha }}' > .deployed_sha; \
+             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans; \
+             docker compose -f docker-compose.prod.yml ps; \
+             expected=\$(docker compose -f docker-compose.prod.yml config --services | wc -l | tr -d ' '); \
+             running=\$(docker compose -f docker-compose.prod.yml ps --status=running --services | wc -l | tr -d ' '); \
+             if [ \"\$running\" != \"\$expected\" ]; then \
+               echo '::error::'\$running'/'\$expected' services running'; \
+               exit 1; \
+             fi; \
+             echo \"All \$expected services running.\"; \
+             docker image prune -f"
+
+      - name: Health check
+        run: |
+          sleep 10
+          URL="${{ vars.CADENCE_URL }}/healthz"
+          if curl --fail --silent --show-error --max-time 15 "$URL"; then
+            echo
+            echo "Health check passed at $URL"
+          else
+            echo "::error::Health check failed at $URL"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "## Test server deployment"
+            echo
+            echo "- Host: \`${{ secrets.SSH_HOST }}\`"
+            echo "- Path: \`${{ secrets.DEPLOY_PATH }}\`"
+            echo "- SHA:  \`${{ github.sha }}\`"
+            echo "- URL:  ${{ vars.CADENCE_URL }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

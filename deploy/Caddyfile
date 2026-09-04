@@ -1,0 +1,6 @@
+# Caddy fetches and renews the HTTPS certificate for CADENCE_DOMAIN on its
+# own, and forwards everything to the app container.
+{$CADENCE_DOMAIN} {
+	encode gzip
+	reverse_proxy cadence:8000
+}
