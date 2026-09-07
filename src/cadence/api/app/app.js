@@ -29,8 +29,12 @@
     saved = { ...saved, ...patch };
     try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch { /* private mode: carry on in memory */ }
   }
-  function forget() {
+  function clear() {
+    saved = {};
     try { localStorage.removeItem(STORE); } catch { /* nothing to remove */ }
+  }
+  function forget() {
+    clear();
     location.reload();
   }
 
@@ -283,12 +287,30 @@
   demoToggle.addEventListener("click", () => setDemo(!document.body.classList.contains("demo")));
   try { setDemo(localStorage.getItem(DEMO) === "1"); } catch { /* fine */ }
 
+  async function open() {
+    if (!saved.episode) await enrol();
+    await openSession();
+  }
+
   (async () => {
     setAwaiting(false);
     try {
-      if (!saved.episode) await enrol();
-      await openSession();
+      await open();
     } catch (error) {
+      if (error.status === 404 && saved.episode) {
+        // This phone remembers a record the server no longer has. On the demo
+        // server that means the database was reset. There is nothing to
+        // resume, so do what a first open does, and say so.
+        try {
+          clear();
+          notice("Fresh start", "The programme was reset since you last opened the app, so this is a new record.");
+          await open();
+          return;
+        } catch (again) {
+          failed(again);
+          return;
+        }
+      }
       failed(error);
     }
   })();
