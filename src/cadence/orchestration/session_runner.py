@@ -15,6 +15,7 @@ YAML, which is why swapping the model changes the wording and nothing else.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -121,6 +122,16 @@ class SessionRunner:
         if signal.triggered:
             return self._escalate(run_id, signal, result)
 
+        # A plain no to a follow-up is an answer. Spend the rest of the budget
+        # and move on, rather than asking the same thing again.
+        followups_used = int((run.scratch or {}).get("followups", {}).get(step.id, 0)) if step else 0
+        if step is not None and step.followup and followups_used and guardrails.is_decline(utterance):
+            scratch = dict(run.scratch or {})
+            scratch["followups"] = {**scratch.get("followups", {}), step.id: step.followup.max}
+            self.store.update_run(run_id, scratch=scratch, step_cursor=run.step_cursor + 1, followup_count=0)
+            result.notes.append("client declined the follow-up; moving on")
+            return self._drive(run_id, carry=result)
+
         if step is not None and step.capture:
             captured = self._extract(session, step, utterance, run)
             result.observations = captured["observation_ids"]
@@ -137,7 +148,7 @@ class SessionRunner:
         # A follow-up repeats the same step rather than advancing, and is
         # bounded by a counter the model cannot see or influence.
         if step is not None and self._should_follow_up(session, step, run):
-            return self._ask_followup(run_id, session, step, result)
+            return self._ask_followup(run_id, session, step, result, utterance)
 
         self.store.update_run(run_id, step_cursor=run.step_cursor + 1, followup_count=0)
         return self._drive(run_id, carry=result)
@@ -394,30 +405,60 @@ class SessionRunner:
 
     # -- listening -----------------------------------------------------------
 
+    @staticmethod
+    def _read_scale(step: Step, utterance: str) -> dict[str, Any] | None:
+        """A plain number on a scale step is read by the engine, not a model.
+
+        "3", "a 3", "3 out of 10" and "About a 3, if I am honest" are all one
+        number inside the step's range, and there is nothing for a model to
+        interpret. Reading them here means the rules that watch the number can
+        trust it fully. Anything less plain, "4 or 5", goes to the reader.
+        """
+        if step.kind != StepKind.SCALE or len(step.capture) != 1:
+            return None
+        spec = step.capture[0]
+        if spec.kind not in ("integer", "number") or not spec.range:
+            return None
+        text = utterance.strip()
+        if not text or len(text) > 40:
+            return None
+        lo, hi = float(spec.range[0]), float(spec.range[-1])
+        bare = re.sub(rf"\s*(?:/|out of)\s*{int(hi)}\b", "", text, flags=re.I)
+        found = re.findall(r"-?\d+(?:\.\d+)?", bare)
+        if len(found) != 1:
+            return None
+        value = float(found[0])
+        if not lo <= value <= hi:
+            return None
+        number: int | float = int(value) if spec.kind == "integer" and value.is_integer() else value
+        return {spec.name: number, "_confidence": 1.0, "_verbatim": text}
+
     def _extract(self, session: Session, step: Step, utterance: str, run: Any) -> dict[str, Any]:
         schema = step_schema(step)
-        prompt = render(
-            "extract.j2",
-            question=self.bundle.localise(step.text or "", "en"),
-            utterance=utterance,
-        )
-        try:
-            extracted = self.router.structured(
-                "extractor",
-                StructuredRequest(
-                    messages=[Message("user", prompt)],
-                    schema=schema,
-                    schema_name=f"{session.id}_{step.id}",
-                    metadata={
-                        "purpose": f"extract:{session.id}/{step.id}",
-                        "client_utterance": utterance,
-                    },
-                ),
-                pseudonym=run.client_id,
-            ).data
-        except ProviderError as exc:
-            log.error("extraction failed for %s/%s: %s", session.id, step.id, exc)
-            return {"observation_ids": [], "low_confidence": False}
+        extracted = self._read_scale(step, utterance)
+        if extracted is None:
+            prompt = render(
+                "extract.j2",
+                question=self.bundle.localise(step.text or "", "en"),
+                utterance=utterance,
+            )
+            try:
+                extracted = self.router.structured(
+                    "extractor",
+                    StructuredRequest(
+                        messages=[Message("user", prompt)],
+                        schema=schema,
+                        schema_name=f"{session.id}_{step.id}",
+                        metadata={
+                            "purpose": f"extract:{session.id}/{step.id}",
+                            "client_utterance": utterance,
+                        },
+                    ),
+                    pseudonym=run.client_id,
+                ).data
+            except ProviderError as exc:
+                log.error("extraction failed for %s/%s: %s", session.id, step.id, exc)
+                return {"observation_ids": [], "low_confidence": False}
 
         confidence = float(extracted.get("_confidence", 1.0) or 0.0)
         verbatim = extracted.get("_verbatim")
@@ -477,7 +518,7 @@ class SessionRunner:
         return self._safe_truthy(step.followup.when, projection, f"{session.id}/{step.id}.followup")
 
     def _ask_followup(
-        self, run_id: str, session: Session, step: Step, result: TurnResult
+        self, run_id: str, session: Session, step: Step, result: TurnResult, utterance: str = ""
     ) -> TurnResult:
         run = self.store.run(run_id)
         scratch = dict(run.scratch or {})
@@ -500,13 +541,24 @@ class SessionRunner:
         # what they get if generation fails, is the authored question.
         authored = (step.followup.text if step.followup else None) or GENERIC_FOLLOWUP
         task = (
-            "The client has answered, but not fully. Follow up once, with a single "
-            f"question, according to this instruction:\n\n{instruction}"
+            "The client has answered, but not fully. Their last message was:\n\n"
+            f"\"{utterance.strip()}\"\n\n"
+            "If that message asked you something, or was not an answer at all, respond to "
+            "it in one plain sentence first: answer it if it is simple and within your "
+            "remit, otherwise say you cannot help with that here. Then follow up once, "
+            f"with a single question, according to this instruction:\n\n{instruction}"
         )
         if step.followup and step.followup.text:
             task += (
                 "\n\nThe clinical team's own wording for this follow-up is below. Keep its "
-                f"meaning and add nothing they did not write:\n\n{step.followup.text}"
+                f"meaning. You may reword it, and add nothing clinical they did not write:"
+                f"\n\n{step.followup.text}"
+            )
+        if followups[step.id] > 1:
+            task += (
+                "\n\nYou have already asked this once and the client did not answer it. "
+                "Do not repeat the same sentence; put it a different way, and make it "
+                "easy to answer briefly."
             )
         prompt = render(
             "counsellor.j2",

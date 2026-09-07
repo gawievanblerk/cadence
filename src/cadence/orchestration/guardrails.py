@@ -141,6 +141,24 @@ def _first_match(pattern: re.Pattern[str], text: str) -> str | None:
     return text[start:end].strip()
 
 
+_DECLINE = re.compile(
+    r"^\W*(?:no|nope|nah|not really|nothing(?: else| more)?|that'?s (?:it|all|everything)|"
+    r"no thanks|no thank you|i (?:don'?t|do not) think so|none|not that i can think of)\W*$",
+    re.I,
+)
+
+
+def is_decline(text: str) -> bool:
+    """A plain no, on its own.
+
+    Used only when the client is answering a follow-up. "No" to "anything
+    else?" is an answer, and asking again is how a conversation turns into a
+    form. Anything with content in it is not a decline and is read as usual.
+    """
+    stripped = text.strip()
+    return len(stripped) <= 40 and bool(_DECLINE.match(stripped))
+
+
 class FollowupBudget:
     """A counter, not a prompt instruction.
 
