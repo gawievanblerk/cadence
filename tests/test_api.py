@@ -240,6 +240,14 @@ class TestAuthoringRoundTrip:
 
 
 class TestInterfaces:
+    def test_the_review_screen_lets_a_reviewer_choose_a_client(self, api) -> None:
+        """Caseload rows select a client; the decision log follows the choice."""
+        html = api.get("/ui/admin").text
+        assert 'data-client="${c.client_id}"' in html
+        assert 'tabindex="0"' in html
+        assert "showDecisions(" in html
+        assert "Choose a client in the caseload above" in html
+
     def test_the_three_pages_are_served(self, api) -> None:
         for path in ("/ui/", "/ui/author", "/ui/admin", "/ui/shared.css"):
             assert api.get(path).status_code == 200, path

@@ -36,7 +36,7 @@
       <h2>Decision log <span class="count" id="decision-scope"></span></h2>
       <p class="tiny muted">Every rule evaluation is recorded, including the ones that did not
       fire. "Why did it not escalate" is the question that actually gets asked in review, and it
-      is unanswerable if only firings are logged.</p>
+      is unanswerable if only firings are logged. Choose a client in the caseload above.</p>
       <table>
         <thead><tr><th style="width:70px"></th><th>Rule and condition</th><th style="width:33%">Values read</th></tr></thead>
         <tbody id="decisions"></tbody>
@@ -70,6 +70,19 @@ const $ = (id) => document.getElementById(id);
 const api = async (p, o = {}) => (await fetch(p, { headers: H, ...o })).json();
 const esc = (s) => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+async function showDecisions(clientId) {
+  $("decision-scope").textContent = clientId.slice(0, 12);
+  $("decisions").innerHTML = `<tr><td colspan="3" class="muted tiny">Loading.</td></tr>`;
+  const decisions = await api(`/clients/${clientId}/decisions`);
+  $("decisions").innerHTML = decisions.slice(-9).map(d => `
+    <tr>
+      <td><span class="state ${d.fired ? "fired" : "quiet"}">${d.fired ? "FIRED" : "no"}</span></td>
+      <td><div class="mono">${d.rule_id}</div><div class="tiny muted mono">${esc(d.expression)}</div></td>
+      <td class="tiny mono">${Object.entries(d.inputs || {})
+        .map(([k, v]) => `${k.split(".").pop()} = ${esc(JSON.stringify(v)).slice(0, 46)}`).join("<br>") || "-"}</td>
+    </tr>`).join("") || `<tr><td colspan="3" class="muted tiny">No rules have been evaluated for this client yet.</td></tr>`;
+}
+
 async function boot() {
   const health = await api("/healthz");
   $("version").textContent = `content ${health.content_version} · ${health.content_hash}`;
@@ -77,7 +90,7 @@ async function boot() {
   const clients = await api("/clients");
   $("caseload-count").textContent = clients.length;
   $("caseload").innerHTML = clients.map(c => `
-    <tr>
+    <tr class="row" data-client="${c.client_id}" tabindex="0" aria-selected="false">
       <td class="mono">${c.client_id.slice(0, 12)}</td>
       <td><span class="chip ${c.pathway === "standard" ? "" : "alert"}">${c.pathway.replace(/_/g, " ")}</span></td>
       <td>${(c.sessions_completed || []).length} of ${((c.sessions_completed || []).length + (c.sessions_remaining || []).length)}
@@ -89,18 +102,26 @@ async function boot() {
              .map(([k]) => `<span class="chip">${k.replace(/_/g, " ")}</span>`).join("") || "-"}</td>
     </tr>`).join("");
 
-  const subject = clients.find(c => (c.lapses_recorded || 0) > 0) || clients[0];
-  if (!subject) return;
+  // A row is a choice. Click it, or reach it with Tab and press Enter, to see
+  // that client's decision log. The first client with a lapse is shown by default.
+  const rows = [...document.querySelectorAll("#caseload tr.row")];
+  const choose = (id) => {
+    rows.forEach(r => {
+      const on = r.dataset.client === id;
+      r.classList.toggle("on", on);
+      r.setAttribute("aria-selected", String(on));
+    });
+    return showDecisions(id);
+  };
+  rows.forEach(r => {
+    r.addEventListener("click", () => choose(r.dataset.client));
+    r.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(r.dataset.client); }
+    });
+  });
 
-  $("decision-scope").textContent = subject.client_id.slice(0, 12);
-  const decisions = await api(`/clients/${subject.client_id}/decisions`);
-  $("decisions").innerHTML = decisions.slice(-9).map(d => `
-    <tr>
-      <td><span class="state ${d.fired ? "fired" : "quiet"}">${d.fired ? "FIRED" : "no"}</span></td>
-      <td><div class="mono">${d.rule_id}</div><div class="tiny muted mono">${esc(d.expression)}</div></td>
-      <td class="tiny mono">${Object.entries(d.inputs || {})
-        .map(([k, v]) => `${k.split(".").pop()} = ${esc(JSON.stringify(v)).slice(0, 46)}`).join("<br>") || "-"}</td>
-    </tr>`).join("");
+  const subject = clients.find(c => (c.lapses_recorded || 0) > 0) || clients[0];
+  if (subject) await choose(subject.client_id);
 
   const egress = await api("/admin/egress");
   $("egress").innerHTML = egress.slice(0, 8).map(e => `

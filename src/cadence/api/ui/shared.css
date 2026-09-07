@@ -123,6 +123,12 @@ th {
 }
 td { padding: 7px 10px 7px 0; border-bottom: 1px solid #f0ece3; vertical-align: top; }
 tr:last-child td { border-bottom: none; }
+/* Caseload rows are choices. */
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--wash); }
+tr.row.on td { background: var(--accent-soft); }
+tr.row.on td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .state { font-weight: 700; font-size: 11px; letter-spacing: 0.05em; }
 .state.fired { color: var(--warn); }
