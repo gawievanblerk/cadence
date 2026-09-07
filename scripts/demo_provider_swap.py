@@ -36,7 +36,7 @@ from cadence.orchestration.schemas import step_schema
 CANDIDATES = [
     ("scripted:demo", None),
     ("openai:gpt-4o-mini", "OPENAI_API_KEY"),
-    ("anthropic:claude-sonnet-4-5", "ANTHROPIC_API_KEY"),
+    ("anthropic:claude-opus-5", "ANTHROPIC_API_KEY"),
     ("gemini:gemini-2.0-flash", "GEMINI_API_KEY"),
     ("deepseek:deepseek-chat", "DEEPSEEK_API_KEY"),
     ("ollama:llama3.1:8b", "OLLAMA_BASE_URL"),

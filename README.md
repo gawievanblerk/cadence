@@ -52,7 +52,7 @@ To use a real model, bind a role to a vendor and export its key. That is the
 whole procedure.
 
 ```bash
-export CADENCE_ROLE_COUNSELLOR=anthropic:claude-sonnet-4-5
+export CADENCE_ROLE_COUNSELLOR=anthropic:claude-opus-5
 export CADENCE_ROLE_EXTRACTOR=openai:gpt-4o-mini
 export CADENCE_ROLE_EMBEDDER=openai:text-embedding-3-small
 export ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
