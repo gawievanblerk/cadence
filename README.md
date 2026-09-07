@@ -35,7 +35,7 @@ plugin, or one small VM with three containers. Either way the deploy runs
 from `main` only after CI passes.
 
 With the server up there are three reference interfaces, all of them calling the
-same API any other client would:
+same API any other client would. The bare hostname opens the phone app.
 
 | | |
 |---|---|

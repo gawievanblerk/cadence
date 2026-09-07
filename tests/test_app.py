@@ -35,6 +35,16 @@ class TestAppShell:
         assert response.status_code in (301, 307, 308)
         assert response.headers["location"].endswith("/app/")
 
+    def test_the_bare_hostname_opens_the_app(self, api) -> None:
+        # The bare hostname is what gets typed or tapped. Temporary on purpose:
+        # a real landing page later must not fight a cached redirect.
+        hop = api.get("/", follow_redirects=False)
+        assert hop.status_code == 307
+        assert hop.headers["location"] == "/app/"
+        landed = api.get("/")
+        assert landed.status_code == 200
+        assert landed.headers["content-type"].startswith("text/html")
+
     def test_the_manifest_declares_a_standalone_app(self, api) -> None:
         response = api.get("/app/manifest.webmanifest")
         assert response.status_code == 200
