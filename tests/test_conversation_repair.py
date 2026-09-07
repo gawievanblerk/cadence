@@ -101,7 +101,7 @@ class TestFollowUpsListen:
 class TestTheReaderKnowsTheDate:
     def test_the_extraction_prompt_carries_today_and_resolves_relative_dates(self, engine, monkeypatch) -> None:
         """"Two weeks from now" is only readable if the reader knows what day it is."""
-        from datetime import date
+        from datetime import datetime, timezone
 
         seen: list[tuple[dict, str]] = []
         real = session_runner.render
@@ -118,7 +118,7 @@ class TestTheReaderKnowsTheDate:
         engine.respond(result.session_run_id, "two weeks from now")
 
         kwargs, prompt = seen[-1]
-        today = date.today().isoformat()
+        today = datetime.now(timezone.utc).date().isoformat()  # the engine keeps UTC
         assert kwargs["today"] == today
         assert today in prompt
         assert "relative" in prompt.lower() and "ISO" in prompt

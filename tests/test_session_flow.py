@@ -55,6 +55,28 @@ class TestSessionMechanics:
         assert engine.next_session(enrolment.episode_id) is None
 
 
+class TestStartingTwice:
+    def test_starting_a_session_that_is_already_open_resumes_it(self, engine) -> None:
+        """A second start is a returning client, not a second client."""
+        enrolment = engine.enrol()
+        first = engine.start(enrolment.episode_id)
+        engine.respond(first.session_run_id, INTAKE_ANSWERS["q-current-use"])
+
+        again = engine.start(enrolment.episode_id)
+        assert again.session_run_id == first.session_run_id
+        assert again.step_id == "q-first-of-day"
+        assert again.awaiting_client is True
+        assert "wake" in again.text.lower()
+        assert len(engine.store.runs_for_episode(enrolment.episode_id)) == 1
+
+    def test_naming_the_open_session_resumes_it_too(self, engine) -> None:
+        enrolment = engine.enrol()
+        first = engine.start(enrolment.episode_id, "s01-intake")
+        again = engine.start(enrolment.episode_id, "s01-intake")
+        assert again.session_run_id == first.session_run_id
+        assert len(engine.store.runs_for_episode(enrolment.episode_id)) == 1
+
+
 class TestMandatoryRules:
     def test_a_session_cannot_close_while_a_required_observation_is_missing(self, engine) -> None:
         """m01-own-reasons requires two goals; a one-word answer should re-open the step."""

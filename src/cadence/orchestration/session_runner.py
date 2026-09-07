@@ -84,6 +84,19 @@ class SessionRunner:
         episode = self.store.episode(episode_id)
         session = self.bundle.session(session_id)
 
+        # A second start of an open session is the same client coming back,
+        # not a second client. Put them back where they were.
+        open_run = next(
+            (
+                r
+                for r in reversed(self.store.runs_for_episode(episode_id))
+                if r.session_id == session.id and r.state == SessionState.IN_PROGRESS.value
+            ),
+            None,
+        )
+        if open_run is not None:
+            return self._resume(open_run.id, session)
+
         projection = self.store.projection(client_id=episode.client_id, episode_id=episode_id)
         if session.opens_when and not self._safe_truthy(session.opens_when, projection, session_id):
             raise PermissionError(
@@ -99,6 +112,26 @@ class SessionRunner:
         )
         self.store.update_run(run.id, scratch={"captures": {}, "followups": {}, "reopened": []})
         return self._drive(run.id)
+
+    def _resume(self, run_id: str, session: Session) -> TurnResult:
+        """Return the counsellor's pending question for an open run.
+
+        Nothing is generated and nothing is recorded: the screen gets what the
+        client was last asked, so the conversation carries on from there.
+        """
+        run = self.store.run(run_id)
+        step = self._step(session, run.step_cursor)
+        pending: list[str] = []
+        for turn in reversed(self.store.turns(run_id)):
+            if turn.role == "client":
+                break
+            if turn.role == "counsellor":
+                pending.insert(0, turn.text)
+        result = TurnResult(session_run_id=run_id, step_id=step.id if step else None)
+        result.messages = pending
+        result.awaiting_client = True
+        result.notes.append("resumed an open session")
+        return result
 
     def respond(self, run_id: str, utterance: str) -> TurnResult:
         run = self.store.run(run_id)
