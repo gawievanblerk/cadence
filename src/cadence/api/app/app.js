@@ -40,7 +40,9 @@
     const response = await fetch(path, { headers: headers(token), ...options });
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));
-      throw new Error(detail.detail || `${response.status} from ${path}`);
+      const error = new Error(detail.detail || `${response.status} from ${path}`);
+      error.status = response.status;
+      throw error;
     }
     return response.json();
   }
@@ -236,11 +238,27 @@
   }
 
   function failed(error) {
-    showState(
-      "Cannot reach the programme",
-      "Check your connection and try again. Nothing you have said is lost.",
-      { label: "Try again", run: () => location.reload() }
-    );
+    if (error.status === 404 && saved.episode) {
+      // This phone remembers a record the server no longer has. On the demo
+      // server that means the database was reset. Nothing here can be resumed.
+      showState(
+        "Your record is not on this server any more",
+        "The programme was reset since you last opened the app. Start again as a new client.",
+        { label: "Start again as a new client", run: forget }
+      );
+    } else if (error.status) {
+      showState(
+        "The programme hit a problem",
+        `The server answered ${error.status}. Try again in a moment. Nothing you have said is lost.`,
+        { label: "Try again", run: () => location.reload() }
+      );
+    } else {
+      showState(
+        "Cannot reach the programme",
+        "Check your connection and try again. Nothing you have said is lost.",
+        { label: "Try again", run: () => location.reload() }
+      );
+    }
     console.error(error);
   }
 

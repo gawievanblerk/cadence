@@ -5,7 +5,7 @@
 // cached: a conversation is not something to serve stale. Bump CACHE when
 // the shell changes so every phone picks up the new files on next open.
 
-const CACHE = "cadence-app-v1";
+const CACHE = "cadence-app-v2";
 const SHELL = [
   "/app/",
   "/app/index.html",

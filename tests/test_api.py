@@ -18,6 +18,28 @@ def api(engine):
     app.dependency_overrides.clear()
 
 
+class TestRecordsThatNoLongerExist:
+    """A phone that remembers an episode the server has forgotten.
+
+    The demo database is wiped by `seed_demo.py --reset`, and a browser that
+    installed the app before that still holds its ids. The server must answer
+    404, not 500, so the app can tell "your record is gone" from "no network".
+    """
+
+    def test_progress_of_a_missing_episode_is_a_404(self, api) -> None:
+        response = api.get("/episodes/epi_gone/progress", headers=CLIENT)
+        assert response.status_code == 404
+        assert "epi_gone" in response.json()["detail"]
+
+    def test_next_session_of_a_missing_episode_is_a_404(self, api) -> None:
+        response = api.get("/episodes/epi_gone/next", headers=CLIENT)
+        assert response.status_code == 404
+
+    def test_transcript_of_a_missing_run_is_a_404(self, api) -> None:
+        response = api.get("/sessions/run_gone/transcript", headers=CLIENT)
+        assert response.status_code == 404
+
+
 def test_health_reports_content_version_and_role_bindings(api) -> None:
     body = api.get("/healthz").json()
     assert body["status"] == "ok"
