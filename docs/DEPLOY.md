@@ -85,6 +85,8 @@ railway ssh -- python scripts/seed_demo.py --reset
 ```
 
 `--reset` drops every table first. Never run it against real client data.
+A phone that installed the app before a reset is told its record is gone
+and offered a fresh start.
 
 ### 5. Test it
 
@@ -217,6 +219,8 @@ docker compose -f docker-compose.prod.yml exec cadence python scripts/seed_demo.
 ```
 
 `--reset` drops every table first. Never run it against real client data.
+A phone that installed the app before a reset is told its record is gone
+and offered a fresh start.
 
 ## 7. Test it
 

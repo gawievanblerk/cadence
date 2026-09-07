@@ -224,7 +224,10 @@ def enrol(body: EnrolRequest, engine: Engine, caller: Caller) -> EnrolResponse:
 @app.get("/episodes/{episode_id}/next")
 def next_session(episode_id: str, engine: Engine, caller: Caller) -> dict[str, Any]:
     caller.require("client", "clinician", "admin")
-    return {"episode_id": episode_id, "session_id": engine.next_session(episode_id)}
+    try:
+        return {"episode_id": episode_id, "session_id": engine.next_session(episode_id)}
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @app.post("/episodes/{episode_id}/sessions", response_model=TurnResponse)
@@ -256,7 +259,10 @@ def respond(run_id: str, body: RespondRequest, engine: Engine, caller: Caller) -
 @app.get("/episodes/{episode_id}/progress")
 def progress(episode_id: str, engine: Engine, caller: Caller) -> dict[str, Any]:
     caller.require("client", "clinician", "admin")
-    return engine.progress(episode_id)
+    try:
+        return engine.progress(episode_id)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @app.get("/clients")
@@ -290,6 +296,10 @@ def list_clients(engine: Engine, caller: Caller) -> list[dict[str, Any]]:
 @app.get("/sessions/{run_id}/transcript")
 def transcript(run_id: str, engine: Engine, caller: Caller) -> list[dict[str, Any]]:
     caller.require("client", "clinician", "admin")
+    try:
+        engine.store.run(run_id)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
     return [
         {"role": t.role, "text": t.text, "step_id": t.step_id, "at": t.created_at.isoformat(), "meta": t.meta}
         for t in engine.store.turns(run_id)
