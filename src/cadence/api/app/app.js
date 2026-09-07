@@ -94,6 +94,9 @@
     } else {
       button.hidden = true;
     }
+    // The quiet "start again" is always offered on this screen. When it is
+    // also the main action, one button is enough.
+    $("forget").hidden = Boolean(action) && action.run === forget;
     $("state").hidden = false;
     $("composer").hidden = true;
     scrollToEnd();
