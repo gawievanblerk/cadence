@@ -163,6 +163,14 @@ APP_TYPES = {
 }
 
 
+@app.get("/", include_in_schema=False)
+def root_redirect() -> RedirectResponse:
+    # The bare hostname is what gets typed or tapped, and the phone app is the
+    # client's door. Temporary on purpose: a real landing page later must not
+    # fight a redirect the browser has cached.
+    return RedirectResponse("/app/", status_code=307)
+
+
 @app.get("/app", include_in_schema=False)
 def app_redirect() -> RedirectResponse:
     return RedirectResponse("/app/", status_code=308)
