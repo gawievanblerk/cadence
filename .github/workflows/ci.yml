@@ -93,13 +93,16 @@ jobs:
       - name: Build
         run: docker build -t cadence:ci .
 
-      - name: Boot and check health
+      # PORT is what Railway and its kind inject; the default of 8000 is what
+      # compose relies on. Booting on 9000 proves the image listens where it
+      # is told.
+      - name: Boot on a platform-chosen port and check health
         run: |
-          docker run -d --name cadence-ci -p 8000:8000 cadence:ci
+          docker run -d --name cadence-ci -e PORT=9000 -p 9000:9000 cadence:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/healthz > /dev/null 2>&1; then
+            if curl -fsS http://127.0.0.1:9000/healthz > /dev/null 2>&1; then
               echo "healthy after ${i}s"
-              curl -sS http://127.0.0.1:8000/healthz
+              curl -sS http://127.0.0.1:9000/healthz
               echo
               docker rm -f cadence-ci > /dev/null
               exit 0

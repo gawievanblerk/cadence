@@ -1,9 +1,112 @@
 # Deploying the test server
 
+Two ways to put a test server online. Both build the same `Dockerfile` and
+deploy from `main` only after CI passes. Neither is a production setup for
+real client data: sign in is still a placeholder, and the notes at the end of
+`COUNSELLOR-MANUAL.md` still apply.
+
+| | Railway | A VM |
+|---|---|---|
+| What you manage | Nothing. Railway builds, runs, and terminates HTTPS | The VM, Docker, backups |
+| Postgres | A Railway plugin | A container on a volume |
+| HTTPS | Railway's domain, or your own | Caddy fetches the certificate |
+| Cost | Usage based, roughly 5 to 10 USD a month for a demo | About 4 EUR a month for a Hetzner CX22 |
+| Good for | A demo that must be up today | Data that must stay in one place |
+
+The Railway route is first because it is shorter. The VM route follows.
+
+## Railway
+
+One service built from the repository's `Dockerfile`, plus Railway's
+Postgres plugin. Railway injects `PORT`, and the image listens on it.
+Railway hands the app a `postgresql://` database URL, and the settings loader
+pins it to the installed driver, so nothing is rewritten by hand.
+
+### 1. One-time setup in the Railway dashboard
+
+1. Create a new project. Add the **PostgreSQL** plugin to it.
+2. Add a service from the GitHub repository:
+   - Branch: `main`.
+   - Builder: Dockerfile. Railway detects the root `Dockerfile` on its own.
+3. Under the service's **Settings**, **Source**, turn on **Wait for CI**.
+   Railway then deploys a commit only after every GitHub Actions check on it
+   is green. That is the whole of the gate: the `deploy` job in `ci.yml` is
+   for the VM route and stays asleep unless `DEPLOY_ENABLED` is set.
+4. Under **Settings**, **Deploy**, set the health check path to `/healthz`.
+5. Under **Settings**, **Networking**, generate a domain, or attach your own.
+
+### 2. Variables
+
+Set these on the service. The first one is a reference to the plugin, typed
+exactly as shown, so Railway keeps it in step with the database.
+
+| Name | Value |
+|---|---|
+| `CADENCE_DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `CADENCE_ENCRYPTION_KEY` | 32 bytes, base64. Generate it as in section 2 of the VM route |
+| `CADENCE_CONTENT_PATH` | `/app/content` |
+| `CADENCE_REDACT_EGRESS` | `true` |
+
+Optional, for a real model instead of the offline counsellor:
+
+| Name | Value |
+|---|---|
+| `CADENCE_ROLE_COUNSELLOR` | `anthropic:claude-sonnet-4-5` |
+| `CADENCE_ROLE_EXTRACTOR` | `anthropic:claude-haiku-4-5` |
+| `CADENCE_ROLE_SUMMARISER` | `anthropic:claude-haiku-4-5` |
+| `ANTHROPIC_API_KEY` | the key |
+
+Do not set `PORT`. Railway sets it.
+
+The same can be done from a laptop with the CLI once the project exists:
+
+```bash
+railway link                       # pick the project and the service
+railway variables --set 'CADENCE_DATABASE_URL=${{Postgres.DATABASE_URL}}' \
+  --set "CADENCE_ENCRYPTION_KEY=$(python3 -c 'import os,base64;print(base64.b64encode(os.urandom(32)).decode())')" \
+  --set CADENCE_CONTENT_PATH=/app/content \
+  --set CADENCE_REDACT_EGRESS=true
+```
+
+### 3. First deploy
+
+Merge to `main`, or press **Deploy** on the service. The first build takes a
+few minutes. When the deploy log shows uvicorn listening, open
+`https://<railway domain>/healthz`. It reports the programme version, its
+hash, and which model each role uses.
+
+### 4. Put demo clients in
+
+The screens are empty until someone enrols. Seed three scripted clients
+from a laptop, inside the running container:
+
+```bash
+railway ssh -- python scripts/seed_demo.py --reset
+```
+
+`--reset` drops every table first. Never run it against real client data.
+
+### 5. Test it
+
+The same checklist as section 7 of the VM route, against the Railway domain.
+
+### Day to day
+
+```bash
+railway logs                       # follow the service log
+railway variables                  # what is set
+railway ssh                        # a shell inside the container
+```
+
+Change the AI model: edit the `CADENCE_ROLE_*` variables. Railway restarts
+the service on its own. No rebuild, no deploy.
+
+Tear it down by deleting the project. That also deletes the database.
+
+## A VM
+
 One small VM, three containers, and a deploy that runs from GitHub on every
-merge to `main`. This is the setup for a test server that people click
-through. It is not a production setup for real client data: sign in is still a
-placeholder, and the notes at the end of `COUNSELLOR-MANUAL.md` still apply.
+merge to `main`.
 
 ## What runs where
 
