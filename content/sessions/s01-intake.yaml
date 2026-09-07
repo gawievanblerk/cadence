@@ -1,5 +1,5 @@
 id: s01-intake
-version: 4
+version: 5
 title: First conversation and baseline
 phase: preparation
 sequence: 10
@@ -16,9 +16,15 @@ recall: []
 mandatory:
   - id: m01-baseline-use
     description: >
-      The intake may not be completed without a recorded baseline of nicotine
-      use. Everything downstream is measured against it.
-    requires: "defined(observations.nicotine_use)"
+      The intake may not be completed without a baseline of nicotine use.
+      Everything downstream is measured against it. What the client said
+      counts, even when the reader was not sure of it: a quantity or a
+      description given in this session satisfies the gate, and the next
+      session reads the baseline back and checks it.
+    requires: >
+      defined(observations.nicotine_use)
+      or defined(capture.daily_quantity)
+      or defined(capture.nicotine_use)
     satisfied_by: [q-current-use]
 
   - id: m01-own-reasons

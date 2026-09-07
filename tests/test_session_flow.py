@@ -66,6 +66,32 @@ class TestMandatoryRules:
         assert asked.count("q-reasons") >= 2
         assert result.finished
 
+    def test_a_baseline_the_reader_was_unsure_of_still_closes_the_intake(
+        self, engine, monkeypatch
+    ) -> None:
+        """m01-baseline-use asks for a baseline, not a confident one.
+
+        A terse "about 20" can come back from the reader below the rule floor.
+        The client still said it. The intake should close, and the next session
+        reads the baseline back and checks it, rather than asking again now.
+        """
+        real = engine.router.structured
+
+        def unsure(role, request, **kwargs):
+            result = real(role, request, **kwargs)
+            if request.schema_name.endswith("q-current-use"):
+                result.data["_confidence"] = 0.3
+            return result
+
+        monkeypatch.setattr(engine.router, "structured", unsure)
+        enrolment = engine.enrol()
+        result = walk(engine, enrolment.episode_id, INTAKE_ANSWERS)
+        assert result.finished
+        run = engine.store.runs_for_episode(enrolment.episode_id)[0]
+        asked = [t.step_id for t in engine.store.turns(run.id) if t.role == "counsellor"]
+        assert asked.count("q-current-use") == 1
+        assert "m01-baseline-use" not in (run.unmet_mandatories or [])
+
     def test_the_follow_up_budget_is_a_hard_limit(self, engine) -> None:
         """q-current-use follows up at most twice, whatever the client says."""
         answers = {**INTAKE_ANSWERS, "q-current-use": "I would rather not say."}
