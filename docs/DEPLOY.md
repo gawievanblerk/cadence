@@ -51,7 +51,7 @@ Optional, for a real model instead of the offline counsellor:
 
 | Name | Value |
 |---|---|
-| `CADENCE_ROLE_COUNSELLOR` | `anthropic:claude-sonnet-4-5` |
+| `CADENCE_ROLE_COUNSELLOR` | `anthropic:claude-opus-5` |
 | `CADENCE_ROLE_EXTRACTOR` | `anthropic:claude-haiku-4-5` |
 | `CADENCE_ROLE_SUMMARISER` | `anthropic:claude-haiku-4-5` |
 | `ANTHROPIC_API_KEY` | the key |
@@ -144,7 +144,7 @@ CADENCE_DOMAIN=cadence-test.yourdomain.com
 CADENCE_ENCRYPTION_KEY=<32 bytes, base64>
 
 # Optional. Leave these out and the offline counsellor answers.
-CADENCE_ROLE_COUNSELLOR=anthropic:claude-sonnet-4-5
+CADENCE_ROLE_COUNSELLOR=anthropic:claude-opus-5
 CADENCE_ROLE_EXTRACTOR=anthropic:claude-haiku-4-5
 CADENCE_ROLE_SUMMARISER=anthropic:claude-haiku-4-5
 ANTHROPIC_API_KEY=<key>

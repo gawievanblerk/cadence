@@ -32,9 +32,26 @@ class AnthropicProvider(Provider):
     """
 
     id = "anthropic"
-    default_model = "claude-sonnet-4-5"
+    default_model = "claude-opus-5"
     base_url = "https://api.anthropic.com/v1"
     api_version = "2023-06-01"
+
+    # Two generations of the Messages API meet here. From Opus 4.7 onward
+    # (Opus 4.7, 4.8 and 5, Sonnet 5, Fable) the model rejects sampling
+    # parameters and thinks by default, and the thinking shares `max_tokens`
+    # with the words the client reads. The models below still take a
+    # temperature and do not think unless asked. Anything not listed is
+    # treated as current, so a new release works without an edit here.
+    _SAMPLING_MODEL_PREFIXES = (
+        "claude-3",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-",
+        "claude-opus-4-0",
+        "claude-opus-4-1",
+        "claude-opus-4-2",
+        "claude-opus-4-5",
+        "claude-opus-4-6",
+    )
 
     def __init__(self, model: str | None = None, **options: Any):
         super().__init__(model, **options)
@@ -49,6 +66,21 @@ class AnthropicProvider(Provider):
             Capability.STREAMING,
             Capability.SYSTEM_PROMPT,
         }
+
+    def _takes_temperature(self) -> bool:
+        return self.model.startswith(self._SAMPLING_MODEL_PREFIXES)
+
+    def _sampling(self, temperature: float) -> dict[str, Any]:
+        """The generation-specific part of a request.
+
+        Older models get the temperature the caller asked for. Current models
+        get low effort instead: the turns this system asks for are short and
+        the clinical decisions are made elsewhere, so the token budget should
+        go on the reply, not on deliberation.
+        """
+        if self._takes_temperature():
+            return {"temperature": temperature}
+        return {"output_config": {"effort": "low"}}
 
     def _headers(self) -> dict[str, str]:
         if not self.api_key:
@@ -95,7 +127,7 @@ class AnthropicProvider(Provider):
             "model": self.model,
             "messages": self._messages(request),
             "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
+            **self._sampling(request.temperature),
         }
         if request.system:
             payload["system"] = request.system
@@ -119,7 +151,7 @@ class AnthropicProvider(Provider):
             "model": self.model,
             "messages": self._messages(request),
             "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
+            **self._sampling(request.temperature),
             "tools": [
                 {
                     "name": tool_name,
