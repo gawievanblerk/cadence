@@ -98,6 +98,32 @@ class TestFollowUpsListen:
         assert "different way" in seen[-1]["task"]
 
 
+class TestTheReaderKnowsTheDate:
+    def test_the_extraction_prompt_carries_today_and_resolves_relative_dates(self, engine, monkeypatch) -> None:
+        """"Two weeks from now" is only readable if the reader knows what day it is."""
+        from datetime import date
+
+        seen: list[tuple[dict, str]] = []
+        real = session_runner.render
+
+        def spy(name, **kwargs):
+            text = real(name, **kwargs)
+            if name == "extract.j2":
+                seen.append((kwargs, text))
+            return text
+
+        monkeypatch.setattr(session_runner, "render", spy)
+        enrolment = engine.enrol()
+        result = _to_step(engine, enrolment.episode_id, "q-quit-date")
+        engine.respond(result.session_run_id, "two weeks from now")
+
+        kwargs, prompt = seen[-1]
+        today = date.today().isoformat()
+        assert kwargs["today"] == today
+        assert today in prompt
+        assert "relative" in prompt.lower() and "ISO" in prompt
+
+
 class TestADeclineIsAnAnswer:
     @pytest.mark.parametrize("no", ["no", "No.", "not really", "nothing else", "no thanks", "that's it", "nope"])
     def test_a_clear_no_to_a_follow_up_moves_the_session_on(self, engine, no) -> None:

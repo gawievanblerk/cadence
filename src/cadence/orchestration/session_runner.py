@@ -441,6 +441,7 @@ class SessionRunner:
                 "extract.j2",
                 question=self.bundle.localise(step.text or "", "en"),
                 utterance=utterance,
+                today=datetime.now(timezone.utc).date().isoformat(),
             )
             try:
                 extracted = self.router.structured(
