@@ -30,8 +30,9 @@ make docker-up      # the same stack the test server runs: Postgres plus the app
 make seed-demo      # three scripted clients, so the review screen has a caseload
 ```
 
-To put it on a server, see `docs/DEPLOY.md`: one small VM, three containers,
-and a deploy that runs from GitHub on every merge to `main`.
+To put it online, see `docs/DEPLOY.md`: a Railway service and its Postgres
+plugin, or one small VM with three containers. Either way the deploy runs
+from `main` only after CI passes.
 
 With the server up there are three reference interfaces, all of them calling the
 same API any other client would:

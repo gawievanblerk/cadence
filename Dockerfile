@@ -18,9 +18,13 @@ RUN pip install --no-cache-dir ".[postgres]" cryptography
 RUN useradd --create-home --uid 10001 cadence && chown -R cadence /app
 USER cadence
 
+# Platforms such as Railway choose the port and pass it as PORT. Compose and
+# a bare `docker run` set nothing, and get 8000.
+ENV PORT=8000
 EXPOSE 8000
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=6 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4)" || exit 1
+  CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/healthz' % os.environ['PORT'], timeout=4)" || exit 1
 
-CMD ["python", "-m", "uvicorn", "cadence.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# exec so uvicorn is PID 1 and receives the stop signal directly.
+CMD exec python -m uvicorn cadence.api.main:app --host 0.0.0.0 --port "$PORT"

@@ -34,6 +34,19 @@ class Binding:
         return f"{self.provider}:{self.model}"
 
 
+def _pin_postgres_driver(url: str) -> str:
+    """Rewrite a bare ``postgresql://`` or ``postgres://`` URL to use psycopg.
+
+    Hosting platforms hand out the bare scheme, and SQLAlchemy reads it as
+    psycopg2, which this image does not ship. Anything that already names a
+    driver, and every other backend, passes through untouched.
+    """
+    for prefix in ("postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = "sqlite:///var/cadence.db"
@@ -62,7 +75,9 @@ class Settings:
             "scripted,hashing,ollama,openai,anthropic,gemini,deepseek",
         )
         return cls(
-            database_url=env.get("CADENCE_DATABASE_URL", "sqlite:///var/cadence.db"),
+            database_url=_pin_postgres_driver(
+                env.get("CADENCE_DATABASE_URL", "sqlite:///var/cadence.db")
+            ),
             content_path=Path(env.get("CADENCE_CONTENT_PATH", "content")),
             content_version=env.get("CADENCE_CONTENT_VERSION", "@latest"),
             bindings=bindings,
